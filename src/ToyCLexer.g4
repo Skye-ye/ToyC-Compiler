@@ -1,7 +1,5 @@
 lexer grammar ToyCLexer;
 
-CONST: 'const';
-
 INT: 'int';
 
 VOID: 'void';
@@ -56,24 +54,15 @@ L_BRACE: '{';
 
 R_BRACE: '}';
 
-L_BRACKT: '[';
-
-R_BRACKT: ']';
-
 COMMA: ',';
 
 SEMICOLON: ';';
 
-IDENT: ('_' | [a - zA - Z])('_' | [a - zA - Z0 - 9]) * ;
+IDENT: [_a-z] [_a-z0-9]* ;
 
-INTEGER_CONST
-: [1 - 9][0 - 9] *
-    | '0'[0 - 7] *
-    | ('0x' | '0X')[0 - 9a - fA - F]+
-    | '0'
-    ;
+INTEGER_CONST: '-'? [1-9] [0-9]* | '0';
 
-WS: [\t\r\n] + -> skip;
+WS: [ \t\r\n] + -> skip;
 
 LINE_COMMENT: '//'.*? '\n' -> skip ;
 

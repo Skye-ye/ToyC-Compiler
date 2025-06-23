@@ -1,0 +1,20 @@
+int func(int arg) {
+    int l;
+    l = - - - arg;
+    return l;
+}
+
+int main() {
+    int x, y;
+    x = 0;
+    y = -2;
+    x = x - 1 + y;
+    if (+-!!!x) {
+        x = - - -2;
+    }
+    else {
+        x = 1 + + y;
+    }
+    func(x);
+    return 0;
+}
