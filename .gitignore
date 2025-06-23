@@ -11,6 +11,6 @@
 .DS_Store
 /out
 /.idea
-/Lab.iml
+/ToyC-Compiler.iml
 /gen
 output

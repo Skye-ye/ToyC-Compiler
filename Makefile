@@ -9,17 +9,6 @@ PFILE := $(shell find . -name "ToyCParser.g4")
 LFILE := $(shell find . -name "ToyCLexer.g4")
 JAVAFILES := $(shell find . -name "*.java")
 
-DOCKER_NAME := toyc_compiler
-
-PHONY += build_docker
-build_docker:
-	docker build -t $(DOCKER_NAME) .
-
-
-PHONY += docker
-docker: build_docker
-	docker run --rm -it -v $(PWD):/mnt -w /mnt $(DOCKER_NAME) bash
-
 
 PHONY += all
 all: compile
