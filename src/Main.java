@@ -1,8 +1,7 @@
 import java.io.IOException;
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.Token;
-import java.util.List;
+
+import org.antlr.v4.runtime.*;
+import org.antlr.v4.runtime.tree.ParseTree;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -12,34 +11,31 @@ public class Main {
         }
         String source = args[0];
         CharStream input = CharStreams.fromFileName(source);
-        ToyCLexer sysYLexer = new ToyCLexer(input);
+        ToyCLexer toyCLexer = new ToyCLexer(input);
 
-        sysYLexer.removeErrorListeners();
-        ErrorListener myErrorListener = new ErrorListener();
-        sysYLexer.addErrorListener(myErrorListener);
+        // remove the default error listener and add our own to collect error information
+        toyCLexer.removeErrorListeners();
+        LexerErrorListener lexerErrorListener = new LexerErrorListener();
+        toyCLexer.addErrorListener(lexerErrorListener);
 
-        List<? extends Token> myTokens = sysYLexer.getAllTokens();
+        CommonTokenStream tokens = new CommonTokenStream(toyCLexer);
+        tokens.fill();
+        ToyCParser toyCParser = new ToyCParser(tokens);
+        toyCParser.removeErrorListeners();
+        ParserErrorListener parserErrorListener = new ParserErrorListener();
+        toyCParser.addErrorListener(parserErrorListener);
 
-        if (myErrorListener.hasError()) {
-            myErrorListener.printLexerErrorInformation();
+        ParseTree tree = toyCParser.compUnit();
+
+        if (lexerErrorListener.hasError()) {
+            lexerErrorListener.printLexerErrorInformation();
         } else {
-            for (Token t : myTokens) {
-                printSysYTokenInformation(t);
+            if (parserErrorListener.hasError()) {
+                parserErrorListener.printParserErrorInformation();
+            } else {
+                ParseTreePrinter printer = new ParseTreePrinter();
+                printer.visit(tree);
             }
-        }
-    }
-
-    public static void printSysYTokenInformation(Token t) {
-        String tokenName = ToyCLexer.VOCABULARY.getSymbolicName(t.getType());
-        String tokenText = t.getText();
-        int tokenLine = t.getLine();
-
-        if ("INTEGER_CONST".equals(tokenName)) {
-            int value = Integer.parseInt(tokenText);
-
-            System.err.println(tokenName + " " + value + " at Line " + tokenLine + ".");
-        } else {
-            System.err.println(tokenName + " " + tokenText + " at Line " + tokenLine + ".");
         }
     }
 }

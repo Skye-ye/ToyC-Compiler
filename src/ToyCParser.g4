@@ -4,6 +4,10 @@ options {
     tokenVocab = ToyCLexer;
 }
 
+program
+    : compUnit
+    ;
+
 compUnit
     : funcDef+ EOF
     ;

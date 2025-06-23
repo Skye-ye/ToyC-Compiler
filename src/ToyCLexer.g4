@@ -58,7 +58,7 @@ COMMA: ',';
 
 SEMICOLON: ';';
 
-IDENT: [_a-z] [_a-z0-9]* ;
+IDENT: [_a-zA-Z] [_a-zA-Z0-9]* ;
 
 INTEGER_CONST: '-'? [1-9] [0-9]* | '0';
 
