@@ -1,7 +1,7 @@
-parser grammar SysYParser;
+parser grammar ToyCParser;
 
 options {
-    tokenVocab = SysYLexer;
+    tokenVocab = ToyCLexer;
 }
 
 program
