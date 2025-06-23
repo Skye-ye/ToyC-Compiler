@@ -2,8 +2,6 @@ FROM ubuntu:22.04
 
 ARG HOME=/root
 
-ARG ANTLR_VERSION=4.13.2
-
 # 0. Set up mirrors and install basic tools
 RUN sed -i s@/archive.ubuntu.com/@/mirrors.tuna.tsinghua.edu.cn/@g /etc/apt/sources.list
 RUN sed -i s@/security.ubuntu.com/@/mirrors.tuna.tsinghua.edu.cn/@g /etc/apt/sources.list
