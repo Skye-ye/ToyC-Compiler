@@ -14,9 +14,5 @@ RUN apt-get update && \
     git curl zip
 RUN rm -rf /var/lib/apt/lists/*
 
-# 1. Download the ANTLR4 complete JAR
-RUN curl -o /mnt/lib/antlr-complete.jar \
-    https://www.antlr.org/download/antlr-${ANTLR_VERSION}-complete.jar
-
 # Ready to go
 WORKDIR /mnt
