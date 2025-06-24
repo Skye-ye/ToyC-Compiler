@@ -1,9 +1,14 @@
+package toyc;
+
 import java.io.IOException;
 
+import toyc.util.LexerErrorListener;
+import toyc.util.ParseTreePrinter;
+import toyc.util.ParserErrorListener;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.ParseTree;
 
-public class Main {
+public class Compiler {
     public static void main(String[] args) throws IOException {
         if (args.length < 1) {
             System.err.println("input path is required");
@@ -19,7 +24,6 @@ public class Main {
         toyCLexer.addErrorListener(lexerErrorListener);
 
         CommonTokenStream tokens = new CommonTokenStream(toyCLexer);
-        tokens.fill();
         ToyCParser toyCParser = new ToyCParser(tokens);
         toyCParser.removeErrorListeners();
         ParserErrorListener parserErrorListener = new ParserErrorListener();

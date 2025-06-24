@@ -1,16 +1,7 @@
-/src/*
-!/src/*.java
-!/src/*.g4
-/src/*Lexer.java
-/src/*Parser.java 
-/src/*ParserBaseListener.java
-/src/*ParserBaseVisitor.java
-/src/*ParserListener.java
-/src/*ParserVisitor.java
-/classes
 .DS_Store
 /out
 /.idea
 /ToyC-Compiler.iml
 /gen
 output
+/target
