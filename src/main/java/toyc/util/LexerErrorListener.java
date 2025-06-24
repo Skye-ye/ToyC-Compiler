@@ -1,14 +1,17 @@
+package toyc.util;
+
 import org.antlr.v4.runtime.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ParserErrorListener extends BaseErrorListener {
+public class LexerErrorListener extends BaseErrorListener {
     private boolean hasError = false;
     private final List<ErrorInfo> errorList = new ArrayList<>();
 
     private static class ErrorInfo {
         int line;
         String msg;
+
         ErrorInfo(int line, String msg) {
             this.line = line;
             this.msg = msg;
@@ -30,9 +33,9 @@ public class ParserErrorListener extends BaseErrorListener {
         return hasError;
     }
 
-    public void printParserErrorInformation() {
+    public void printLexerErrorInformation() {
         for (ErrorInfo error : errorList) {
-            System.out.println("Error type B at Line " + error.line + ": " + error.msg);
+            System.err.println("Error type A at Line " + error.line + ": " + error.msg);
         }
     }
 }

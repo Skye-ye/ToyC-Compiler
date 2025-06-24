@@ -1,6 +1,11 @@
+package toyc.util;
+
 import org.antlr.v4.runtime.tree.RuleNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.antlr.v4.runtime.ParserRuleContext;
+import toyc.ToyCParserBaseVisitor;
+import toyc.ToyCParser;
+import toyc.ToyCLexer;
 
 public class ParseTreePrinter extends ToyCParserBaseVisitor<String> {
     private int indentLevel = 0;
