@@ -1,9 +1,5 @@
 .DS_Store
 /out
 /.idea
-/gen
-output
-/target
-/gradle
 /build
 /.gradle
