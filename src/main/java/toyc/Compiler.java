@@ -4,8 +4,8 @@ import java.io.IOException;
 
 import toyc.semantic.SemanticChecker;
 import toyc.util.LexerErrorListener;
-import toyc.util.ParseTreePrinter;
 import toyc.util.ParserErrorListener;
+import toyc.util.formatter.ToyCFormatter;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.ParseTree;
 
@@ -38,6 +38,10 @@ public class Compiler {
                 checker.visit(tree);
                 if (!checker.hasError()) {
                     System.out.println("No semantic errors found.");
+                    ToyCFormatter formatter = new ToyCFormatter();
+                    formatter.visit(tree);
+                    String formattedCode = formatter.getFormattedCode();
+                    System.out.println(formattedCode);
                 }
             }
         }
