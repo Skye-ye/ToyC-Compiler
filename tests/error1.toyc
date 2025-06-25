@@ -1,0 +1,7 @@
+int main() {
+    int a = 1;
+    int b = a;
+    int c = func(a);
+    int e = a + b;
+    return 0;
+}
