@@ -1,0 +1,17 @@
+int main() {
+    if (2) {
+        while (1) {
+            if (1) {
+                break;
+            }
+        }
+    } else {
+        while (1) {
+            if (1)
+                break;
+            else
+                continue;
+        }
+    }
+    return 0;
+}

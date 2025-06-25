@@ -1,0 +1,9 @@
+void print(int a) {}
+int main() {
+    while (1)
+        print(1);
+    if (2)
+        print(2);
+    else
+        print(3);
+}
