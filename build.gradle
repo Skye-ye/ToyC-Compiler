@@ -1,0 +1,38 @@
+plugins {
+    id 'java'
+    id 'antlr'
+    id 'application'
+}
+
+application {
+    mainClass = 'toyc.Compiler'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    antlr 'org.antlr:antlr4:4.13.2'
+    implementation 'org.antlr:antlr4-runtime:4.13.2'
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter-api'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+}
+
+generateGrammarSource {
+    outputDirectory = layout.buildDirectory.dir('generated-src/antlr/main/toyc').get().asFile
+    arguments = [
+            '-visitor',
+            '-listener',
+            '-package', 'toyc',
+            '-Xexact-output-dir'
+    ]
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}

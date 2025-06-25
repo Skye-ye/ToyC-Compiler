@@ -1,5 +1,5 @@
 ## Setup
 ```bash
-sudo chmod +x init.sh
-sudo ./init.sh
+sudo chmod +x setup.sh
+sudo ./setup.sh
 ```

@@ -1,7 +1,9 @@
 .DS_Store
 /out
 /.idea
-/ToyC-Compiler.iml
 /gen
 output
 /target
+/gradle
+/build
+/.gradle
