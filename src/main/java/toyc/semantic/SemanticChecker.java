@@ -49,7 +49,7 @@ public class SemanticChecker extends ToyCParserBaseVisitor<Type> {
         List<Type> paramTypes = new ArrayList<>();
         if (ctx.funcFParams() != null) {
             visit(ctx.funcFParams());
-            paramTypes = curSymbolTable.getTypes();
+            paramTypes = List.copyOf(curSymbolTable.getTypes());
         }
 
         curSymbolTable = curSymbolTable.getParent();
