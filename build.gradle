@@ -24,9 +24,10 @@ generateGrammarSource {
     outputDirectory = layout.buildDirectory.dir('generated-src/antlr/main/toyc').get().asFile
     arguments = [
             '-visitor',
-            '-listener',
+            '-no-listener',
+            '-long-messages',
             '-package', 'toyc',
-            '-Xexact-output-dir'
+            '-Xexact-output-dir',
     ]
 }
 

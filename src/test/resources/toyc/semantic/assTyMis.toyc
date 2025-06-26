@@ -1,4 +1,0 @@
-int main() {
-                int a="hello";
-                return 0;
-            }

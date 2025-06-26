@@ -105,23 +105,23 @@ public class SemanticChecker extends ToyCParserBaseVisitor<Type> {
     @Override
     public Type visitStmt(ToyCParser.StmtContext ctx) {
         if (ctx.ASSIGN() != null) { // Assign
-            String lvalName = ctx.lVal().IDENT().getText();
-            Type lvalType = visitLVal(ctx.lVal());
-            if (lvalType == null) {
+            String lValName = ctx.lVal().IDENT().getText();
+            Type lValType = visitLVal(ctx.lVal());
+            if (lValType == null) {
                 return null;
             }
             Type rvalType = visitExp(ctx.exp());
             if (rvalType == null) {
                 return null;
             }
-            if (lvalType instanceof FunctionType) { // Function cannot be assigned
+            if (lValType instanceof FunctionType) { // Function cannot be assigned
                 OutputHelper.printTypeError(OutputHelper.ErrorType.NON_VAR_ASSIGN,
-                        ctx.lVal().IDENT().getSymbol().getLine(), lvalName);
+                        ctx.lVal().IDENT().getSymbol().getLine(), lValName);
                 hasError = true;
                 return null;
             }
 
-            if (!lvalType.equals(rvalType)) { // Type mismatch
+            if (!lValType.equals(rvalType)) { // Type mismatch
                 OutputHelper.printTypeError(OutputHelper.ErrorType.TYPE_MISMATCH_ASSIGN,
                         ctx.ASSIGN().getSymbol().getLine());
                 hasError = true;

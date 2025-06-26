@@ -1,0 +1,15 @@
+void func() {}
+
+int main() {
+    while (func()) {
+        int x = 1;
+    }
+
+    if (func()) {
+        int y = 2;
+    } else {
+        int z = 3;
+    }
+
+    return 0;
+}
