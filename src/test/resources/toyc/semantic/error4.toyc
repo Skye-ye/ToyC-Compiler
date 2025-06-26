@@ -1,6 +1,0 @@
-int func() {
-}
-
-void func2() {
-    return 1;
-}

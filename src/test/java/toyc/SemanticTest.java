@@ -1,22 +1,23 @@
 package toyc;
 
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URL;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class SemanticTest {
-    // OutputCapture class remains the same...
     static class OutputCapture {
-        private final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
         private final ByteArrayOutputStream errContent = new ByteArrayOutputStream();
         private final PrintStream originalOut = System.out;
         private final PrintStream originalErr = System.err;
 
         public OutputCapture() {
+            ByteArrayOutputStream outContent = new ByteArrayOutputStream();
             System.setOut(new PrintStream(outContent));
             System.setErr(new PrintStream(errContent));
         }
@@ -31,141 +32,146 @@ public class SemanticTest {
         }
     }
 
-    /**
-     * Helper method to get the absolute path of a test resource file.
-     * This is the key change.
-     * @param resourceName The name of the file inside src/test/resources/toyc/semantic/
-     * @return The absolute path to the file.
-     */
     private String getResourcePath(String resourceName) {
-        // The path inside the resources folder
         String resourcePath = "/toyc/semantic/" + resourceName;
         URL resource = this.getClass().getResource(resourcePath);
-
-        // Assert that the resource was found, otherwise the test setup is wrong.
         Assertions.assertNotNull(resource, "Test resource not found: " + resourcePath);
-
-        // Return the absolute path for the Compiler to use.
         return resource.getPath();
+    }
+
+    private void assertCompilerError(String resourceName, String expectedErrorSnippet) throws IOException {
+        OutputCapture capture = new OutputCapture();
+        try {
+            String filePath = getResourcePath(resourceName);
+            Compiler.main(new String[]{filePath});
+            String actualError = capture.getError();
+
+            String assertionMessage = String.format(
+                    """
+                            Test for '%s' failed.
+                            Expected to find snippet:
+                             \
+                            "%s"
+                            Actual error was: "%s\"""",
+                    resourceName,
+                    expectedErrorSnippet,
+                    actualError.trim()
+            );
+            assertTrue(actualError.contains(expectedErrorSnippet), assertionMessage);
+        } finally {
+            capture.restore();
+        }
+    }
+
+    @Test
+    void testVarUndef() throws IOException {
+        assertCompilerError("VarUnDef.toyc", "Undefined variable 'x'");
     }
 
     @Test
     void testFuncUndef() throws IOException {
-        OutputCapture capture = new OutputCapture();
-        try {
-            // Use the helper method to get the correct file path
-            String filePath = getResourcePath("funcUnDef.toyc");
-            Compiler.main(new String[]{filePath});
-            assertTrue(capture.getError().contains("Error type 2 at Line 4: Undefined function 'func'"),
-                    "funcUnDef.toyc should report undefined function call error. Error was: " + capture.getError());
-        } finally {
-            capture.restore();
-        }
+        assertCompilerError("FuncUnDef.toyc", "Undefined function 'func'");
     }
 
     @Test
-    void testError2() throws IOException {
-        OutputCapture capture = new OutputCapture();
-        try {
-            String filePath = getResourcePath("error2.toyc");
-            Compiler.main(new String[]{filePath});
-            assertTrue(capture.getError().contains("Error type 5 at Line 2: Function redefinition 'func'"),
-                    "error2.toyc should report duplicate parameter names or redefinition error. Error was: " + capture.getError());
-        } finally {
-            capture.restore();
-        }
-    }
-
-    // Apply the same pattern for all other tests...
-
-    @Test
-    void testError3() throws IOException {
-        OutputCapture capture = new OutputCapture();
-        try {
-            String filePath = getResourcePath("error3.toyc");
-            Compiler.main(new String[]{filePath});
-            assertTrue(capture.getError().contains("using function as variable"),
-                    "error3.toyc should report using function as variable error. Error was: " + capture.getError());
-        } finally {
-            capture.restore();
-        }
+    void testVarRedef() throws IOException {
+        assertCompilerError("VarReDef.toyc", "Variable redefinition 'x'");
     }
 
     @Test
-    void testError4() throws IOException {
-        OutputCapture capture = new OutputCapture();
-        try {
-            String filePath = getResourcePath("error4.toyc");
-            Compiler.main(new String[]{filePath});
-            assertTrue(capture.getError().contains("void function returning value"),
-                    "error4.toyc should report void function returning value error. Error was: " + capture.getError());
-        } finally {
-            capture.restore();
-        }
+    void testParamRedef() throws IOException {
+        assertCompilerError("ParamReDef.toyc", "Parameter redefinition 'a'");
     }
 
     @Test
-    void testError5() throws IOException {
-        OutputCapture capture = new OutputCapture();
-        try {
-            String filePath = getResourcePath("error5.toyc");
-            Compiler.main(new String[]{filePath});
-            assertTrue(capture.getError().contains("incorrect argument count"),
-                    "error5.toyc should report incorrect argument count error. Error was: " + capture.getError());
-        } finally {
-            capture.restore();
-        }
+    void testFuncRedef() throws IOException {
+        assertCompilerError("FuncReDef.toyc", "Function redefinition 'func'");
     }
 
     @Test
-    void testError6() throws IOException {
-        OutputCapture capture = new OutputCapture();
-        try {
-            String filePath = getResourcePath("error6.toyc");
-            Compiler.main(new String[]{filePath});
-            assertTrue(capture.getError().contains("variable used as function"),
-                    "error6.toyc should report variable used as function error. Error was: " + capture.getError());
-        } finally {
-            capture.restore();
-        }
+    void testAssignTypeMismatch() throws IOException {
+        // Corrected: The original code passed an error message to getResourcePath.
+        assertCompilerError("AssignTypeMismatch.toyc", "Type mismatched for assignment");
     }
 
     @Test
-    void testError7() throws IOException {
-        OutputCapture capture = new OutputCapture();
-        try {
-            String filePath = getResourcePath("error7.toyc");
-            Compiler.main(new String[]{filePath});
-            assertTrue(capture.getError().contains("assigning to function"),
-                    "error7.toyc should report assigning to function error. Error was: " + capture.getError());
-        } finally {
-            capture.restore();
-        }
+    void testOperandTypeMismatch() throws IOException {
+        // Corrected: The original code passed an error message to getResourcePath.
+        assertCompilerError("OperandTypeMismatch.toyc", "Type mismatched for " +
+                "operand '+'");
     }
 
     @Test
-    void testError8() throws IOException {
-        OutputCapture capture = new OutputCapture();
-        try {
-            String filePath = getResourcePath("error8.toyc");
-            Compiler.main(new String[]{filePath});
-            assertTrue(capture.getError().contains("void function used in condition"),
-                    "error8.toyc should report void function used in condition error. Error was: " + capture.getError());
-        } finally {
-            capture.restore();
-        }
+    void testReturnTypeMismatch() throws IOException {
+        assertCompilerError("ReturnTypeMismatch.toyc", "Type mismatched for return");
     }
 
     @Test
-    void testError9() throws IOException {
-        OutputCapture capture = new OutputCapture();
-        try {
-            String filePath = getResourcePath("error9.toyc");
-            Compiler.main(new String[]{filePath});
-            assertTrue(capture.getError().contains("misplaced continue/break"),
-                    "error9.toyc should report misplaced continue/break error. Error was: " + capture.getError());
-        } finally {
-            capture.restore();
-        }
+    void testArgsMismatch() throws IOException {
+        assertCompilerError("ArgsMismatch.toyc", "Arguments mismatched 'func'");
+    }
+
+    @Test
+    void testNonFuncCall() throws IOException {
+        assertCompilerError("NonFuncCall.toyc", "Call of non-function 'a'");
+    }
+
+    @Test
+    void testAssignNonVar() throws IOException {
+        assertCompilerError("AssignNonVar.toyc", "Assignment to non-variable " +
+                "'func'");
+    }
+
+    @Test
+    void testBreakOutsideWhile() throws IOException {
+        assertCompilerError("BreakOutsideWhile.toyc", "Break statement appears outside while block");
+    }
+
+    @Test
+    void testContinueOutsideWhile() throws IOException {
+        assertCompilerError("ContinueOutsideWhile.toyc", "Continue statement appears outside while block");
+    }
+
+    @Test
+    void testUndefMain() throws IOException {
+        assertCompilerError("UnDefMain.toyc", "Main function is not defined");
+    }
+
+    @Test
+    void testMainReturnNonIntType() throws IOException {
+        assertCompilerError("MainReturnNonIntType.toyc", "Main function must return int");
+    }
+
+    @Test
+    void testMainNonEmptyParam() throws IOException {
+        assertCompilerError("MainNonEmptyParam.toyc", "Main function must not have parameters");
+    }
+
+    @Test
+    void testVoidReturnFuncUseAsRval() throws IOException {
+        assertCompilerError("VoidReturnFuncUseAsRval.toyc", "Error at Line 4:" +
+                " Void return function cannot be used as rvalue 'func'\nError" +
+                " at Line 8: Void return function cannot be used as rvalue 'func'");
+    }
+
+    @Test
+    void testNonVoidFuncMissingReturn() throws IOException {
+        assertCompilerError("NonVoidFuncMissingReturn.toyc", """
+                Error \
+                at line 1: Non-void function must return a value \
+                'func'
+                Error at line 3: Non-void function must return a \
+                value 'func2'
+                Error at line 12: Non-void function must return a value 'func3'""");
+    }
+
+    @Test
+    void testIntegerOverflow() throws IOException {
+        assertCompilerError("IntegerOverflow.toyc", "Integer overflow occurred");
+    }
+
+    @Test
+    void testZeroDivision() throws IOException {
+        assertCompilerError("ZeroDivision.toyc", "Division by zero is not allowed");
     }
 }

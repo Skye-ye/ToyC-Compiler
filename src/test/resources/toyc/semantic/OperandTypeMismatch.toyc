@@ -1,0 +1,6 @@
+void func() {}
+
+int main() {
+    int a = 1 + func();
+    return 0;
+}
