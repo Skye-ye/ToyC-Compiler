@@ -23,7 +23,6 @@ public class SymbolTable {
     public void define(String name, Type type) {
         symbols.put(name, type);
         types.add(type);
-        // System.out.println(name + " defined as " + type);
     }
 
     // Look for symbol in current scope and parent scopes
