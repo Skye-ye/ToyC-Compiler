@@ -2,3 +2,24 @@ int main() {
     continue;
     return 0;
 }
+
+int func() {
+    int x = 1;
+    if (x > 1) {
+        return 2;
+    } else {
+        while (x != 1) {
+            x = x - 1;
+            if (x == 0) {
+                continue; // This is valid, as it is inside a loop
+            } else {
+                while (x < 5) {
+                    x = x + 1;
+                    if (x == 3) {
+                        continue; // This is valid, as it is inside a loop
+                    }
+                }
+            }
+        }
+    }
+}

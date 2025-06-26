@@ -48,7 +48,17 @@ public final class OutputHelper {
         }
     }
 
-    // Static method to print semantic errors with line number and identifier
+    // Static method to print semantic errors with line and column number and identifier
+    public static void printTypeError(ErrorType errorType, int line, int column, String identifier) {
+        String errorMessage = String.format("Error at Line %d, Column %d: %s '%s'.",
+                line,
+                column,
+                errorType.getMessage(),
+                identifier);
+        System.err.println(errorMessage);
+    }
+
+    // Static method to print semantic errors with line number and identifier (backward compatibility)
     public static void printTypeError(ErrorType errorType, int line, String identifier) {
         String errorMessage = String.format("Error at Line %d: %s '%s'.",
                 line,
@@ -57,11 +67,26 @@ public final class OutputHelper {
         System.err.println(errorMessage);
     }
 
-    // Overloaded method for errors that don't need an identifier
+    // Overloaded method for errors that don't need an identifier with line and column
+    public static void printTypeError(ErrorType errorType, int line, int column) {
+        String errorMessage = String.format("Error at Line %d, Column %d: %s.",
+                line,
+                column,
+                errorType.getMessage());
+        System.err.println(errorMessage);
+    }
+
+    // Overloaded method for errors that don't need an identifier (backward compatibility)
     public static void printTypeError(ErrorType errorType, int line) {
         String errorMessage = String.format("Error at Line %d: %s.",
                 line,
                 errorType.getMessage());
+        System.err.println(errorMessage);
+    }
+
+    // Overloaded method for errors that don't need a line number or identifier
+    public static void printTypeError(ErrorType errorType) {
+        String errorMessage = String.format("Error: %s.", errorType.getMessage());
         System.err.println(errorMessage);
     }
 }

@@ -50,9 +50,11 @@ public class SemanticTest {
                     """
                             Test for '%s' failed.
                             Expected to find snippet:
-                             \
-                            "%s"
-                            Actual error was: "%s\"""",
+                            \
+                            %s
+                            Actual error was:
+                            \
+                            %s\"""",
                     resourceName,
                     expectedErrorSnippet,
                     actualError.trim()
@@ -124,12 +126,12 @@ public class SemanticTest {
 
     @Test
     void testBreakOutsideWhile() throws IOException {
-        assertCompilerError("BreakOutsideWhile.toyc", "Break statement appears outside while block");
+        assertCompilerError("BreakOutsideWhile.toyc", "Error at Line 2, Column 5: Break statement appears outside while block.");
     }
 
     @Test
     void testContinueOutsideWhile() throws IOException {
-        assertCompilerError("ContinueOutsideWhile.toyc", "Continue statement appears outside while block");
+        assertCompilerError("ContinueOutsideWhile.toyc", "Error at Line 2, Column 5: Continue statement appears outside while block.");
     }
 
     @Test
@@ -149,29 +151,35 @@ public class SemanticTest {
 
     @Test
     void testVoidReturnFuncUseAsRval() throws IOException {
-        assertCompilerError("VoidReturnFuncUseAsRval.toyc", "Error at Line 4:" +
-                " Void return function cannot be used as rvalue 'func'\nError" +
-                " at Line 8: Void return function cannot be used as rvalue 'func'");
+        assertCompilerError("VoidReturnFuncUseAsRval.toyc", "Error at Line 4," +
+                " Column 12: Void return function cannot be used as rvalue " +
+                "'func'.\nError at Line 8, Column 9: Void return function " +
+                "cannot be used as rvalue 'func'.");
     }
 
     @Test
     void testNonVoidFuncMissingReturn() throws IOException {
         assertCompilerError("NonVoidFuncMissingReturn.toyc", """
-                Error \
-                at line 1: Non-void function must return a value \
-                'func'
-                Error at line 3: Non-void function must return a \
-                value 'func2'
-                Error at line 12: Non-void function must return a value 'func3'""");
+                Error at Line \
+                1, Column 5: Non-void function must return a value 'func'.
+                Error at Line 3, Column 5: Non-void function must return \
+                a value 'func2'.
+                Error at Line 12, Column 5: Non-void \
+                function must return a value 'func3'.""");
     }
 
     @Test
     void testIntegerOverflow() throws IOException {
-        assertCompilerError("IntegerOverflow.toyc", "Integer overflow occurred");
+        assertCompilerError("IntegerOverflow.toyc", """
+                Error at Line 2, Column 13: Integer overflow occurred.
+                Error at Line 3, Column 13: Integer overflow occurred.
+                Error at Line 4, Column 13: Integer overflow occurred.
+                Error at Line 5, Column 13: Integer overflow occurred.
+                """);
     }
 
     @Test
     void testZeroDivision() throws IOException {
-        assertCompilerError("ZeroDivision.toyc", "Division by zero is not allowed");
+        assertCompilerError("ZeroDivision.toyc", "Error at Line 2, Column 15: Division by zero is not allowed.");
     }
 }
