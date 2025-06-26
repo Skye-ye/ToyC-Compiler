@@ -64,13 +64,13 @@ public class SemanticTest {
     }
 
     @Test
-    void testError2() throws IOException {
+    void testVarUndef() throws IOException {
         OutputCapture capture = new OutputCapture();
         try {
-            String filePath = getResourcePath("error2.toyc");
+            String filePath = getResourcePath("varUnDef.toyc");
             Compiler.main(new String[]{filePath});
-            assertTrue(capture.getError().contains("Error type 5 at Line 2: Function redefinition 'func'"),
-                    "error2.toyc should report duplicate parameter names or redefinition error. Error was: " + capture.getError());
+            assertTrue(capture.getError().contains("Error type 1 at Line 2:  Undefined variable 'a'"),
+                    "varUnDef.toyc should report duplicate parameter names or redefinition error. Error was: " + capture.getError());
         } finally {
             capture.restore();
         }
@@ -79,91 +79,117 @@ public class SemanticTest {
     // Apply the same pattern for all other tests...
 
     @Test
-    void testError3() throws IOException {
+    void testVarRedef() throws IOException {
         OutputCapture capture = new OutputCapture();
         try {
-            String filePath = getResourcePath("error3.toyc");
+            String filePath = getResourcePath("varReDef.toyc");
             Compiler.main(new String[]{filePath});
-            assertTrue(capture.getError().contains("using function as variable"),
-                    "error3.toyc should report using function as variable error. Error was: " + capture.getError());
+            assertTrue(capture.getError().contains("Error type 3 at Line 3: Variable redefinition 'x'"),
+                    "varReDef.toyc should report using function as variable error. Error was: " + capture.getError());
         } finally {
             capture.restore();
         }
     }
 
     @Test
-    void testError4() throws IOException {
+    void testParRedef() throws IOException {
         OutputCapture capture = new OutputCapture();
         try {
-            String filePath = getResourcePath("error4.toyc");
+            String filePath = getResourcePath("parReDef.toyc");
             Compiler.main(new String[]{filePath});
-            assertTrue(capture.getError().contains("void function returning value"),
-                    "error4.toyc should report void function returning value error. Error was: " + capture.getError());
+            assertTrue(capture.getError().contains("Error type 4 at Line 1: Parameter redefinition 'a'"),
+                    "parReDef.toyc should report void function returning value error. Error was: " + capture.getError());
         } finally {
             capture.restore();
         }
     }
 
     @Test
-    void testError5() throws IOException {
+    void testFuncRedef() throws IOException {
         OutputCapture capture = new OutputCapture();
         try {
-            String filePath = getResourcePath("error5.toyc");
+            String filePath = getResourcePath("funcReDef.toyc");
             Compiler.main(new String[]{filePath});
-            assertTrue(capture.getError().contains("incorrect argument count"),
-                    "error5.toyc should report incorrect argument count error. Error was: " + capture.getError());
+            assertTrue(capture.getError().contains("Error type 5 at Line 3: Function redefinition 'main'"),
+                    "funcReDef.toyc should report incorrect argument count error. Error was: " + capture.getError());
         } finally {
             capture.restore();
         }
     }
 
     @Test
-    void testError6() throws IOException {
+    void testAssignMismatch() throws IOException {
         OutputCapture capture = new OutputCapture();
         try {
-            String filePath = getResourcePath("error6.toyc");
+            String filePath = getResourcePath("Error type 1 at Line 2: Undefined variable 'hello'.");
             Compiler.main(new String[]{filePath});
             assertTrue(capture.getError().contains("variable used as function"),
-                    "error6.toyc should report variable used as function error. Error was: " + capture.getError());
+                    "assTyMis.toyc should report variable used as function error. Error was: " + capture.getError());
         } finally {
             capture.restore();
         }
     }
 
     @Test
-    void testError7() throws IOException {
+    void testOperMismatch() throws IOException {
         OutputCapture capture = new OutputCapture();
         try {
-            String filePath = getResourcePath("error7.toyc");
+            String filePath = getResourcePath("oprTyMis.toyc");
             Compiler.main(new String[]{filePath});
-            assertTrue(capture.getError().contains("assigning to function"),
-                    "error7.toyc should report assigning to function error. Error was: " + capture.getError());
+            assertTrue(capture.getError().contains("Error type 1 at Line 2: Undefined variable 'world'"),
+                    "oprTyMis.toyc should report assigning to function error. Error was: " + capture.getError());
         } finally {
             capture.restore();
         }
     }
 
     @Test
-    void testError8() throws IOException {
+    void testRetrunMismatch() throws IOException {
         OutputCapture capture = new OutputCapture();
         try {
-            String filePath = getResourcePath("error8.toyc");
+            String filePath = getResourcePath("retTyMis.toyc");
             Compiler.main(new String[]{filePath});
             assertTrue(capture.getError().contains("void function used in condition"),
-                    "error8.toyc should report void function used in condition error. Error was: " + capture.getError());
+                    "retTyMis.toyc should report void function used in condition error. Error was: " + capture.getError());
         } finally {
             capture.restore();
         }
     }
 
     @Test
-    void testError9() throws IOException {
+    void testArgMismatch() throws IOException {
         OutputCapture capture = new OutputCapture();
         try {
-            String filePath = getResourcePath("error9.toyc");
+            String filePath = getResourcePath("argMis.toyc");
             Compiler.main(new String[]{filePath});
-            assertTrue(capture.getError().contains("misplaced continue/break"),
-                    "error9.toyc should report misplaced continue/break error. Error was: " + capture.getError());
+            assertTrue(capture.getError().contains("Error type 9 at Line 6: Arguments mismatched 'sum'"),
+                    "argMis.toyc should report misplaced continue/break error. Error was: " + capture.getError());
+        } finally {
+            capture.restore();
+        }
+    }
+
+    @Test
+    void testNonFunccall() throws IOException {
+        OutputCapture capture = new OutputCapture();
+        try {
+            String filePath = getResourcePath("nonFuncCall.toyc");
+            Compiler.main(new String[]{filePath});
+            assertTrue(capture.getError().contains("Error type 10 at Line 3: Call of non-function 'a'"),
+                    "nonFuncCall.toyc should report misplaced continue/break error. Error was: " + capture.getError());
+        } finally {
+            capture.restore();
+        }
+    }
+
+    @Test
+    void testAssignNonvar() throws IOException {
+        OutputCapture capture = new OutputCapture();
+        try {
+            String filePath = getResourcePath("assNonVar.toyc");
+            Compiler.main(new String[]{filePath});
+            assertTrue(capture.getError().contains("Error type B at Line 2: mismatched input '=' expecting {'+', '-', '*', '/', '%', '==', '!=', '<', '>', '<=', '>=', '&&', '||', ';'}"),
+                    "assNonVar.toyc should report misplaced continue/break error. Error was: " + capture.getError());
         } finally {
             capture.restore();
         }

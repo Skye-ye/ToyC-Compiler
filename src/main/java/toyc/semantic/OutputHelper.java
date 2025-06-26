@@ -12,7 +12,9 @@ public class OutputHelper {
         TYPE_MISMATCH_RETURN("Type mismatched for return"),
         ARGS_MISMATCH("Arguments mismatched"),
         NON_FUNC_CALL("Call of non-function"),
-        NON_VAR_ASSIGN("Assignment to non-variable");
+        NON_VAR_ASSIGN("Assignment to non-variable"),
+        BREAK_OUTSIDE_WHILE("Break statement appears outside while block"),
+        CONTINUE_OUTSIDE_WHILE("Continue statement appears outside while block");
 
         private final String message;
 
