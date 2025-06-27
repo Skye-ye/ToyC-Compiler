@@ -1,4 +1,4 @@
-package toyc.type;
+package toyc.semantic.type;
 
 import java.util.List;
 

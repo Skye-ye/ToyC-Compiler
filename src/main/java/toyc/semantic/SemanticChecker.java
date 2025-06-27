@@ -4,8 +4,11 @@ import java.util.List;
 import java.util.ArrayList;
 import toyc.ToyCParser;
 import toyc.ToyCParserBaseVisitor;
-import toyc.symbol.SymbolTable;
-import toyc.type.*;
+import toyc.semantic.type.FunctionType;
+import toyc.semantic.type.IntType;
+import toyc.semantic.type.Type;
+import toyc.semantic.type.VoidType;
+import toyc.semantic.symbol.SymbolTable;
 
 public class SemanticChecker extends ToyCParserBaseVisitor<Type> {
     private SymbolTable curSymbolTable;

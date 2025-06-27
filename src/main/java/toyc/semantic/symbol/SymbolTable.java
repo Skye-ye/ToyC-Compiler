@@ -1,9 +1,9 @@
-package toyc.symbol;
+package toyc.semantic.symbol;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
-import toyc.type.Type;
+import toyc.semantic.type.Type;
 
 public class SymbolTable {
     private final SymbolTable parent;

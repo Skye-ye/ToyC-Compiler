@@ -1,0 +1,19 @@
+void increment() {
+    int a = 1;
+}
+
+void decrement() {
+    int b = 1;
+}
+
+int get_counter() {
+    int c = 0;
+    return c;
+}
+
+int main() {
+    increment();
+    increment();
+    decrement();
+    return get_counter();
+}
