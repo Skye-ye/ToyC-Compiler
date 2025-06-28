@@ -3,7 +3,7 @@ package toyc.ir;
 import toyc.ToyCParser;
 import toyc.ToyCParserBaseVisitor;
 import toyc.ir.instruction.*;
-import toyc.ir.value.Constant;
+import toyc.ir.value.I32Constant;
 import toyc.ir.value.Temporary;
 import toyc.ir.value.Value;
 import toyc.ir.value.Variable;
@@ -78,6 +78,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<Value> {
                 String paramName = param.IDENT().getText();
                 Variable paramVar = new Variable(paramName);
                 variables.put(paramName, paramVar);
+                currentCFG.addParameterName(paramName);
             }
         }
         
@@ -402,6 +403,6 @@ public class IRBuilder extends ToyCParserBaseVisitor<Value> {
     @Override
     public Value visitNumber(ToyCParser.NumberContext ctx) {
         int value = Integer.parseInt(ctx.INTEGER_CONST().getText());
-        return new Constant(value);
+        return new I32Constant(value);
     }
 }

@@ -1,9 +1,9 @@
 package toyc.ir.value;
 
-public class Constant extends Value {
+public class I32Constant extends Value {
     private final int value;
     
-    public Constant(int value) {
+    public I32Constant(int value) {
         this.value = value;
     }
     
@@ -20,7 +20,7 @@ public class Constant extends Value {
     public boolean equals(Object obj) {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
-        Constant constant = (Constant) obj;
+        I32Constant constant = (I32Constant) obj;
         return value == constant.value;
     }
     
