@@ -8,15 +8,25 @@ public class ControlFlowGraph {
     private BasicBlock entryBlock;
     private BasicBlock exitBlock;
     private final Map<Label, BasicBlock> labelToBlock;
+    private final List<String> parameterNames;
     
     public ControlFlowGraph(String functionName) {
         this.functionName = functionName;
         this.blocks = new ArrayList<>();
         this.labelToBlock = new HashMap<>();
+        this.parameterNames = new ArrayList<>();
     }
     
     public String getFunctionName() {
         return functionName;
+    }
+    
+    public List<String> getParameterNames() {
+        return parameterNames;
+    }
+    
+    public void addParameterName(String paramName) {
+        parameterNames.add(paramName);
     }
     
     public List<BasicBlock> getBlocks() {
