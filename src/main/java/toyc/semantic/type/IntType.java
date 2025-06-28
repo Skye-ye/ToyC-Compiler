@@ -1,4 +1,4 @@
-package toyc.type;
+package toyc.semantic.type;
 
 public class IntType extends Type {
     private static final IntType instance = new IntType();

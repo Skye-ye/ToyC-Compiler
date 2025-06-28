@@ -1,0 +1,19 @@
+int main() {
+    int a = 5;
+    int b = 10;
+    int c = 3;
+    
+    // Complex arithmetic expressions
+    int result1 = (a + b) * c - (a - b) / 2;
+    
+    // Complex logical expressions
+    int result2 = (a > b && c < 5) || (b >= 10 && a != 0);
+    
+    // Unary operators
+    int result3 = -a + !result2;
+    
+    // Mixed expression types
+    int result4 = (a * b + c) > (b - a * 2) && result1 != 0;
+    
+    return result1 + result3;
+}

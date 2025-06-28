@@ -5,6 +5,10 @@ import java.io.IOException;
 import toyc.semantic.SemanticChecker;
 import toyc.util.LexerErrorListener;
 import toyc.util.ParserErrorListener;
+import toyc.ir.IRBuilder;
+import toyc.ir.IRPrinter;
+import toyc.ir.IROptimizer;
+import toyc.ir.ControlFlowGraph;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.ParseTree;
 
@@ -36,7 +40,19 @@ public class Compiler {
                 SemanticChecker semanticChecker = new SemanticChecker();
                 semanticChecker.visit(tree);
                 if (!semanticChecker.hasError()) {
-                    System.out.println("Semantic analysis passed.");
+                    // Generate IR
+                    IRBuilder irBuilder = new IRBuilder();
+                    irBuilder.visit(tree);
+                    
+                    // Optimize IR
+                    for (ControlFlowGraph cfg : irBuilder.getFunctions().values()) {
+                        IROptimizer.optimizeControlFlow(cfg);
+                    }
+                    
+                    // Print IR
+                    IRPrinter irPrinter = new IRPrinter();
+                    String irOutput = irPrinter.printProgram(irBuilder.getFunctions());
+                    System.out.println(irOutput);
                 } else {
                     System.err.println("Semantic analysis failed.");
                 }
