@@ -59,8 +59,9 @@ public class IRBuilder extends ToyCParserBaseVisitor<Value> {
         // Record function return type
         boolean isVoid = ctx.funcType().VOID() != null;
         functionReturnTypes.put(funcName, isVoid);
+        currentCFG.setReturnType(isVoid ? "void" : "int");
         
-        BasicBlock entryBlock = new BasicBlock(funcName);
+        BasicBlock entryBlock = new BasicBlock(funcName + "Entry");
         currentCFG.setEntryBlock(entryBlock);
         currentCFG.addBlock(entryBlock);
         currentBlock = entryBlock;

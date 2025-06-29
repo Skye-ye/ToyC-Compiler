@@ -2,6 +2,8 @@ package toyc.ir;
 
 import toyc.ir.instruction.*;
 import toyc.ir.value.Temporary;
+import toyc.ir.util.OperatorUtils;
+import toyc.ir.util.CounterManager;
 
 import java.util.Map;
 import java.util.HashMap;
@@ -25,8 +27,7 @@ public class IRPrinter implements InstructionVisitor {
         output.setLength(0);
         
         // Reset counters at the beginning of program printing
-        Temporary.resetCounter();
-        BasicBlock.resetCounter();
+        CounterManager.resetAll();
         
         output.append("=== ToyC Intermediate Representation ===\n\n");
         
@@ -42,7 +43,6 @@ public class IRPrinter implements InstructionVisitor {
         // Reset temporary counter and rename map for each function
         tempCounter = 0;
         tempRenameMap.clear();
-        Temporary.resetCounter();
         
         // Print LLVM-style function definition
         String functionName = cfg.getFunctionName();
@@ -64,7 +64,7 @@ public class IRPrinter implements InstructionVisitor {
         
         for (int i = 0; i < blocksToProcess.size(); i++) {
             boolean isLastBlock = (i == blocksToProcess.size() - 1);
-            printBasicBlock(blocksToProcess.get(i), functionName, isLastBlock);
+            printBasicBlock(blocksToProcess.get(i), isLastBlock);
         }
         
         output.append("}\n");
@@ -87,15 +87,17 @@ public class IRPrinter implements InstructionVisitor {
         return params.toString();
     }
     
-    private void printBasicBlock(BasicBlock block, String functionName, boolean isLastBlock) {
-        String blockName = block.getName();
+    private void printBasicBlock(BasicBlock block, boolean isLastBlock) {
+        String blockLabel;
         
-        // Convert first block to functionEntry format
-        if (blockName.equals("BB0") || blockName.equals(functionName)) {
-            blockName = functionName + "Entry";
+        // Use descriptive label if available, otherwise use block name
+        if (block.getDescriptiveLabel() != null) {
+            blockLabel = block.getDescriptiveLabel();
+        } else {
+            blockLabel = block.getName();
         }
         
-        output.append(blockName).append(":\n");
+        output.append(blockLabel).append(":\n");
         
         for (Instruction instruction : block.getInstructions()) {
             indent();
@@ -121,23 +123,6 @@ public class IRPrinter implements InstructionVisitor {
         return originalName;
     }
     
-    private String getOperatorString(BinaryOpInstruction.BinaryOp operator) {
-        return switch (operator) {
-            case ADD -> "+";
-            case SUB -> "-";
-            case MUL -> "*";
-            case DIV -> "/";
-            case MOD -> "%";
-            case LT -> "<";
-            case GT -> ">";
-            case LE -> "<=";
-            case GE -> ">=";
-            case EQ -> "==";
-            case NEQ -> "!=";
-            case AND -> "&&";
-            case OR -> "||";
-        };
-    }
     
     @Override
     public void visit(AssignInstruction instruction) {
@@ -148,10 +133,10 @@ public class IRPrinter implements InstructionVisitor {
     
     @Override
     public void visit(BinaryOpInstruction instruction) {
-        String result = renameTemporary(instruction.getResult().getName());
+        String result = renameTemporary(instruction.getResult().toString());
         String left = renameTemporary(instruction.getLeft().toString());
         String right = renameTemporary(instruction.getRight().toString());
-        String op = getOperatorString(instruction.getOperator());
+        String op = OperatorUtils.operatorToString(instruction.getOperator());
         output.append(result).append(" = ").append(left).append(" ").append(op).append(" ").append(right);
     }
     
@@ -163,7 +148,7 @@ public class IRPrinter implements InstructionVisitor {
     @Override
     public void visit(CallInstruction instruction) {
         if (instruction.getResult() != null) {
-            String result = renameTemporary(instruction.getResult().getName());
+            String result = renameTemporary(instruction.getResult().toString());
             output.append(result).append(" = ");
         }
         output.append("call ").append(instruction.getFunctionName()).append("(");

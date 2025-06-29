@@ -1,13 +1,20 @@
 package toyc.ir.value;
 
-public class Temporary extends Variable {
-    private static int nextId = 0;
+import toyc.ir.util.CounterManager;
+
+public class Temporary extends Value {
+    private final String name;
     
     public Temporary() {
-        super("t" + nextId++);
+        this.name = "t" + CounterManager.nextTempId();
     }
     
-    public static void resetCounter() {
-        nextId = 0;
+    public String getName() {
+        return name;
+    }
+    
+    @Override
+    public String toString() {
+        return name;
     }
 }

@@ -2,23 +2,21 @@ package toyc.ir.instruction;
 
 import toyc.ir.InstructionVisitor;
 import toyc.ir.value.Value;
-import toyc.ir.value.Variable;
-
 import java.util.List;
 
 public class CallInstruction extends Instruction {
-    private final Variable result;
+    private final Value result;
     private final String functionName;
     private final List<Value> arguments;
     
-    public CallInstruction(Variable result, String functionName, List<Value> arguments) {
+    public CallInstruction(Value result, String functionName, List<Value> arguments) {
         super();
         this.result = result;
         this.functionName = functionName;
         this.arguments = arguments;
     }
     
-    public Variable getResult() {
+    public Value getResult() {
         return result;
     }
     
