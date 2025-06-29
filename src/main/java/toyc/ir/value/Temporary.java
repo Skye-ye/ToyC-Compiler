@@ -6,7 +6,7 @@ public class Temporary extends Value {
     private final String name;
     
     public Temporary() {
-        this.name = "t" + CounterManager.nextTempId();
+        this.name = "temp$" + CounterManager.nextTempId();
     }
     
     public String getName() {

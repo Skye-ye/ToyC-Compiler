@@ -13,15 +13,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-public class DOTGenerator {
+public class CFGGenerator {
     
-    public static void generateDOTFile(ControlFlowGraph cfg, String outputPath) throws IOException {
+    public static void generateCFGFile(ControlFlowGraph cfg,
+                                       String outputPath) throws IOException {
         try (PrintWriter writer = new PrintWriter(Files.newBufferedWriter(Path.of(outputPath)))) {
-            generateDOT(cfg, writer);
+            generateCFGDOT(cfg, writer);
         }
     }
     
-    private static void generateDOT(ControlFlowGraph cfg, PrintWriter writer) {
+    private static void generateCFGDOT(ControlFlowGraph cfg,
+                                       PrintWriter writer) {
         writer.println("digraph \"" + escapeDOTString(cfg.getFunctionName()) + "\" {");
         writer.println("  node [shape=box, style=filled, color=\".3 .2 1.0\"];");
         writer.println("  edge [fontsize=8];");

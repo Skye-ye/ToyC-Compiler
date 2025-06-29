@@ -1,8 +1,5 @@
 package toyc.ir.util;
 
-/**
- * Centralized counter management for all IR component ID generation
- */
 public final class CounterManager {
     private static int instructionCounter = 0;
     private static int blockCounter = 0;
@@ -38,5 +35,9 @@ public final class CounterManager {
     
     public static void resetBlockCounter() {
         blockCounter = 0;
+    }
+    
+    public static void resetTempCounter() {
+        tempCounter = 0;
     }
 }
