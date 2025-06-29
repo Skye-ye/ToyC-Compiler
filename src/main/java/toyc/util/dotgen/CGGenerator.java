@@ -1,4 +1,4 @@
-package toyc.util;
+package toyc.util.dotgen;
 
 import toyc.ir.BasicBlock;
 import toyc.ir.ControlFlowGraph;

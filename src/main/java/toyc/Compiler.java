@@ -9,8 +9,9 @@ import toyc.ir.IRBuilder;
 import toyc.ir.IRPrinter;
 import toyc.ir.IROptimizer;
 import toyc.ir.ControlFlowGraph;
-import toyc.util.CFGGenerator;
-import toyc.util.CGGenerator;
+import toyc.util.dotgen.CFGGenerator;
+import toyc.util.dotgen.CGGenerator;
+import toyc.util.dotgen.ICFGGenerator;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.ParseTree;
 
@@ -76,6 +77,9 @@ public class Compiler {
                     // Generate CFG DOT files
                     generateCFGDotFiles(cfgs, source);
 
+                    // Generate CG DOT file
+                    generateCGDotFile(irBuilder.getFunctions(), source);
+                    
                     // Generate ICFG DOT file
                     generateICFGDotFile(irBuilder.getFunctions(), source);
 
@@ -118,6 +122,33 @@ public class Compiler {
         }
     }
     
+    private void generateCGDotFile(Map<String, ControlFlowGraph> functions, String sourceFilePath) {
+        try {
+            // Create output directory
+            Path outputDir = Paths.get("output");
+            if (!Files.exists(outputDir)) {
+                Files.createDirectories(outputDir);
+            }
+            
+            // Extract source file name without extension for prefix
+            String sourceFileName = Paths.get(sourceFilePath).getFileName().toString();
+            String baseName = sourceFileName.replaceFirst("[.][^.]+$", ""); // Remove extension
+            
+            // Generate CG DOT file
+            String cgFileName = baseName + "_cg.dot";
+            Path cgFilePath = outputDir.resolve(cgFileName);
+            
+            try {
+                CGGenerator.generateCGFile(functions, cgFilePath.toString());
+                System.out.println("Generated CG DOT file: " + cgFilePath);
+            } catch (IOException e) {
+                System.err.println("Failed to generate CG DOT file: " + e.getMessage());
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to create output directory: " + e.getMessage());
+        }
+    }
+    
     private void generateICFGDotFile(Map<String, ControlFlowGraph> functions, String sourceFilePath) {
         try {
             // Create output directory
@@ -135,7 +166,7 @@ public class Compiler {
             Path icfgFilePath = outputDir.resolve(icfgFileName);
             
             try {
-                CGGenerator.generateCGFile(functions, icfgFilePath.toString());
+                ICFGGenerator.generateICFGFile(functions, icfgFilePath.toString());
                 System.out.println("Generated ICFG DOT file: " + icfgFilePath);
             } catch (IOException e) {
                 System.err.println("Failed to generate ICFG DOT file: " + e.getMessage());
