@@ -3,15 +3,9 @@ package toyc.ir.instruction;
 import toyc.ir.InstructionVisitor;
 
 public abstract class Instruction {
-    private static int nextId = 0;
-    private final int id;
     
     public Instruction() {
-        this.id = nextId++;
-    }
-    
-    public int getId() {
-        return id;
+        // Base constructor for all instructions
     }
     
     public abstract String toString();

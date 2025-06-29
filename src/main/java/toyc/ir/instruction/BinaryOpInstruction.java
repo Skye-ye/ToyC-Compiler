@@ -2,7 +2,7 @@ package toyc.ir.instruction;
 
 import toyc.ir.InstructionVisitor;
 import toyc.ir.value.Value;
-import toyc.ir.value.Variable;
+import toyc.ir.util.OperatorUtils;
 
 public class BinaryOpInstruction extends Instruction {
     public enum BinaryOp {
@@ -11,12 +11,12 @@ public class BinaryOpInstruction extends Instruction {
         AND, OR
     }
     
-    private final Variable result;
+    private final Value result;
     private final Value left;
     private final BinaryOp operator;
     private final Value right;
     
-    public BinaryOpInstruction(Variable result, Value left, BinaryOp operator, Value right) {
+    public BinaryOpInstruction(Value result, Value left, BinaryOp operator, Value right) {
         super();
         this.result = result;
         this.left = left;
@@ -24,7 +24,7 @@ public class BinaryOpInstruction extends Instruction {
         this.right = right;
     }
     
-    public Variable getResult() {
+    public Value getResult() {
         return result;
     }
     
@@ -42,25 +42,7 @@ public class BinaryOpInstruction extends Instruction {
     
     @Override
     public String toString() {
-        return result + " = " + left + " " + operatorToString() + " " + right;
-    }
-    
-    private String operatorToString() {
-        return switch (operator) {
-            case ADD -> "+";
-            case SUB -> "-";
-            case MUL -> "*";
-            case DIV -> "/";
-            case MOD -> "%";
-            case LT -> "<";
-            case GT -> ">";
-            case LE -> "<=";
-            case GE -> ">=";
-            case EQ -> "==";
-            case NEQ -> "!=";
-            case AND -> "&&";
-            case OR -> "||";
-        };
+        return result + " = " + left + " " + OperatorUtils.operatorToString(operator) + " " + right;
     }
     
     @Override

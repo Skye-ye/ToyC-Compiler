@@ -7,6 +7,7 @@ import toyc.ir.value.I32Constant;
 import toyc.ir.value.Temporary;
 import toyc.ir.value.Value;
 import toyc.ir.value.Variable;
+import toyc.ir.util.CounterManager;
 
 import java.util.*;
 
@@ -59,8 +60,9 @@ public class IRBuilder extends ToyCParserBaseVisitor<Value> {
         // Record function return type
         boolean isVoid = ctx.funcType().VOID() != null;
         functionReturnTypes.put(funcName, isVoid);
+        currentCFG.setReturnType(isVoid ? "void" : "int");
         
-        BasicBlock entryBlock = new BasicBlock(funcName);
+        BasicBlock entryBlock = new BasicBlock(funcName + "Entry");
         currentCFG.setEntryBlock(entryBlock);
         currentCFG.addBlock(entryBlock);
         currentBlock = entryBlock;
@@ -72,6 +74,9 @@ public class IRBuilder extends ToyCParserBaseVisitor<Value> {
         variables.clear();
         whileCounter = 0;
         ifCounter = 0;
+        
+        // Reset temporary counter for each function to ensure consistent numbering
+        CounterManager.resetTempCounter();
         
         if (ctx.funcFParams() != null) {
             for (ToyCParser.FuncFParamContext param : ctx.funcFParams().funcFParam()) {

@@ -2,25 +2,23 @@ package toyc.ir.instruction;
 
 import toyc.ir.InstructionVisitor;
 import toyc.ir.value.Value;
-import toyc.ir.value.Variable;
-
 public class UnaryOpInstruction extends Instruction {
     public enum UnaryOp {
         PLUS, MINUS, NOT
     }
     
-    private final Variable result;
+    private final Value result;
     private final UnaryOp operator;
     private final Value operand;
     
-    public UnaryOpInstruction(Variable result, UnaryOp operator, Value operand) {
+    public UnaryOpInstruction(Value result, UnaryOp operator, Value operand) {
         super();
         this.result = result;
         this.operator = operator;
         this.operand = operand;
     }
     
-    public Variable getResult() {
+    public Value getResult() {
         return result;
     }
     

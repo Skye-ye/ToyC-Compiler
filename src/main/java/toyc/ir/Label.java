@@ -1,7 +1,8 @@
 package toyc.ir;
 
+import toyc.ir.util.CounterManager;
+
 public class Label {
-    private static int nextId = 0;
     private final String name;
     
     public Label(String name) {
@@ -9,7 +10,7 @@ public class Label {
     }
     
     public Label() {
-        this.name = "L" + nextId++;
+        this.name = "L" + CounterManager.nextLabelId();
     }
     
     public String getName() {
@@ -32,9 +33,5 @@ public class Label {
     @Override
     public int hashCode() {
         return name.hashCode();
-    }
-    
-    public static void resetCounter() {
-        nextId = 0;
     }
 }

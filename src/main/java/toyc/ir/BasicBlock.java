@@ -1,28 +1,30 @@
 package toyc.ir;
 
 import toyc.ir.instruction.Instruction;
+import toyc.ir.util.CounterManager;
 
 import java.util.*;
 
 public class BasicBlock {
-    private static int nextId = 0;
     private final int id;
-    private final String name;
+    private String name;
+    private String descriptiveLabel;
     private final List<Instruction> instructions;
     private final Set<BasicBlock> predecessors;
     private final Set<BasicBlock> successors;
     private Label label;
     
-    public BasicBlock(String name) {
-        this.id = nextId++;
-        this.name = name;
+    public BasicBlock(String descriptiveLabel) {
+        this.id = CounterManager.nextBlockId();
+        this.name = "B" + id;
+        this.descriptiveLabel = descriptiveLabel;
         this.instructions = new ArrayList<>();
         this.predecessors = new HashSet<>();
         this.successors = new HashSet<>();
     }
     
     public BasicBlock() {
-        this("BB" + nextId);
+        this(null);
     }
     
     public int getId() {
@@ -31,6 +33,10 @@ public class BasicBlock {
     
     public String getName() {
         return name;
+    }
+    
+    public void setName(String name) {
+        this.name = name;
     }
     
     public List<Instruction> getInstructions() {
@@ -70,6 +76,14 @@ public class BasicBlock {
         this.label = label;
     }
     
+    public String getDescriptiveLabel() {
+        return descriptiveLabel;
+    }
+    
+    public void setDescriptiveLabel(String descriptiveLabel) {
+        this.descriptiveLabel = descriptiveLabel;
+    }
+    
     public boolean isEmpty() {
         return instructions.isEmpty();
     }
@@ -90,9 +104,5 @@ public class BasicBlock {
             sb.append("  ").append(instruction).append("\n");
         }
         return sb.toString();
-    }
-    
-    public static void resetCounter() {
-        nextId = 0;
     }
 }
