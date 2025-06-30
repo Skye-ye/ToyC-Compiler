@@ -9,6 +9,7 @@ public class ControlFlowGraph {
     private BasicBlock exitBlock;
     private final Map<Label, BasicBlock> labelToBlock;
     private final List<String> parameterNames;
+    private String returnType;
     
     public ControlFlowGraph(String functionName) {
         this.functionName = functionName;
@@ -27,6 +28,14 @@ public class ControlFlowGraph {
     
     public void addParameterName(String paramName) {
         parameterNames.add(paramName);
+    }
+    
+    public String getReturnType() {
+        return returnType;
+    }
+    
+    public void setReturnType(String returnType) {
+        this.returnType = returnType;
     }
     
     public List<BasicBlock> getBlocks() {
@@ -70,55 +79,6 @@ public class ControlFlowGraph {
     
     public void mapLabelToBlock(Label label, BasicBlock block) {
         labelToBlock.put(label, block);
-    }
-    
-    public List<BasicBlock> getPostOrder() {
-        List<BasicBlock> result = new ArrayList<>();
-        Set<BasicBlock> visited = new HashSet<>();
-        
-        if (entryBlock != null) {
-            postOrderDFS(entryBlock, visited, result);
-        }
-        
-        return result;
-    }
-    
-    private void postOrderDFS(BasicBlock block, Set<BasicBlock> visited, List<BasicBlock> result) {
-        if (visited.contains(block)) {
-            return;
-        }
-        
-        visited.add(block);
-        for (BasicBlock successor : block.getSuccessors()) {
-            postOrderDFS(successor, visited, result);
-        }
-        result.add(block);
-    }
-    
-    public List<BasicBlock> getReversePostOrder() {
-        List<BasicBlock> postOrder = getPostOrder();
-        Collections.reverse(postOrder);
-        return postOrder;
-    }
-    
-    public void removeUnreachableBlocks() {
-        Set<BasicBlock> reachable = new HashSet<>();
-        if (entryBlock != null) {
-            markReachable(entryBlock, reachable);
-        }
-        
-        blocks.removeIf(block -> !reachable.contains(block));
-    }
-    
-    private void markReachable(BasicBlock block, Set<BasicBlock> reachable) {
-        if (reachable.contains(block)) {
-            return;
-        }
-        
-        reachable.add(block);
-        for (BasicBlock successor : block.getSuccessors()) {
-            markReachable(successor, reachable);
-        }
     }
     
     @Override
