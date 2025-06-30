@@ -6,12 +6,16 @@ import toyc.ir.instruction.Instruction;
 import toyc.ir.instruction.JumpInstruction;
 import toyc.ir.instruction.ConditionalJumpInstruction;
 import toyc.ir.instruction.ReturnInstruction;
+import toyc.ir.instruction.CallInstruction;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.ArrayList;
 
 public class CFGGenerator {
     
@@ -26,128 +30,163 @@ public class CFGGenerator {
                                        PrintWriter writer) {
         writer.println("digraph \"" + escapeDOTString(cfg.getFunctionName()) + "\" {");
         writer.println("  node [shape=box, style=filled, color=\".3 .2 1.0\"];");
-        writer.println("  edge [fontsize=8];");
         writer.println();
+        
+        int globalNodeId = 0;
+        FunctionInfo funcInfo = new FunctionInfo();
+        funcInfo.entryNodeId = globalNodeId++;
+        funcInfo.exitNodeId = -1; // Will be set when we find the exit
         
         // Generate Entry node with function signature
         String functionSignature = buildFunctionSignature(cfg);
-        writer.println("  \"Entry\" [label=\"Entry<" + escapeDOTString(functionSignature) + ">\"];");
+        writer.println("  \"" + funcInfo.entryNodeId + "\" [label=\"Entry<" + escapeDOTString(functionSignature) + ">\"];");
         
-        // Generate all basic blocks that are in the optimized CFG
+        // Generate nodes for each instruction (excluding control flow instructions)
+        int instructionIndex = 0;
         for (BasicBlock block : cfg.getBlocks()) {
-            generateBlockNode(block, writer);
+            for (Instruction instruction : block.getInstructions()) {
+                // Skip control flow instructions (goto, if goto) - they become edges
+                if (instruction instanceof JumpInstruction || instruction instanceof ConditionalJumpInstruction) {
+                    instructionIndex++;
+                    continue;
+                }
+                
+                if (instruction instanceof ReturnInstruction) {
+                    // Create exit node if this is a return
+                    if (funcInfo.exitNodeId == -1) {
+                        funcInfo.exitNodeId = globalNodeId++;
+                        writer.println("  \"" + funcInfo.exitNodeId + "\" [label=\"Exit<" + escapeDOTString(functionSignature) + ">\"];");
+                    }
+                    
+                    // Create return instruction node
+                    int returnNodeId = globalNodeId++;
+                    String returnLabel = instructionIndex + ": " + instruction;
+                    writer.println("  \"" + returnNodeId + "\" [label=\"" + escapeDOTString(returnLabel) + "\"];");
+                    
+                    funcInfo.instructionNodes.add(new InstructionNode(returnNodeId, instruction, instructionIndex, block));
+                } else {
+                    int nodeId = globalNodeId++;
+                    String label = instructionIndex + ": " + instruction.toString();
+                    
+                    writer.println("  \"" + nodeId + "\" [label=\"" + escapeDOTString(label) + "\"];");
+                    funcInfo.instructionNodes.add(new InstructionNode(nodeId, instruction, instructionIndex, block));
+                }
+                instructionIndex++;
+            }
         }
         
-        // Generate Exit node with function signature
-        writer.println("  \"Exit\" [label=\"Exit<" + escapeDOTString(functionSignature) + ">\"];");
+        // If no return instruction found, create exit node
+        if (funcInfo.exitNodeId == -1) {
+            funcInfo.exitNodeId = globalNodeId++;
+            writer.println("  \"" + funcInfo.exitNodeId + "\" [label=\"Exit<" + escapeDOTString(functionSignature) + ">\"];");
+        }
         
         writer.println();
         
-        // Generate entry edge
-        if (cfg.getEntryBlock() != null) {
-            writer.println("  \"Entry\" -> \"" + escapeDOTString(cfg.getEntryBlock().getName()) + "\" [label=\"ENTRY\"];");
-        }
-        
-        // Generate edges based on actual jump instructions  
-        for (BasicBlock block : cfg.getBlocks()) {
-            generateBlockEdgesFromInstructions(block, writer, cfg);
-        }
+        // Generate edges based on CFG structure
+        generateCFGEdges(cfg, funcInfo, writer);
         
         writer.println("}");
     }
     
-    private static void generateBlockNode(BasicBlock block, PrintWriter writer) {
-        StringBuilder label = new StringBuilder();
-        label.append(block.getName());
+    private static void generateCFGEdges(ControlFlowGraph cfg, FunctionInfo funcInfo, PrintWriter writer) {
+        // Build mapping from blocks to their first instruction nodes
+        Map<BasicBlock, InstructionNode> blockToFirstNode = new HashMap<>();
+        Map<BasicBlock, InstructionNode> blockToLastNode = new HashMap<>();
         
-        if (!block.getInstructions().isEmpty()) {
-            label.append("\\n\\n");
-            boolean firstInstruction = true;
-            for (Instruction inst : block.getInstructions()) {
-                // Skip goto and conditional jump instructions since control flow is shown by edges
-                String instStr = inst.toString();
-                if (instStr.startsWith("goto ") || instStr.startsWith("if ")) {
-                    continue;
+        for (InstructionNode node : funcInfo.instructionNodes) {
+            BasicBlock block = node.block;
+            if (!blockToFirstNode.containsKey(block)) {
+                blockToFirstNode.put(block, node);
+            }
+            blockToLastNode.put(block, node);
+        }
+        
+        // Entry to first instruction of entry block
+        BasicBlock entryBlock = cfg.getEntryBlock();
+        if (entryBlock != null && blockToFirstNode.containsKey(entryBlock)) {
+            writer.println("  \"" + funcInfo.entryNodeId + "\" -> \"" + blockToFirstNode.get(entryBlock).nodeId + "\" [];");
+        }
+        
+        // Edges within blocks (sequential flow)
+        for (BasicBlock block : cfg.getBlocks()) {
+            List<InstructionNode> blockNodes = new ArrayList<>();
+            for (InstructionNode node : funcInfo.instructionNodes) {
+                if (node.block == block) {
+                    blockNodes.add(node);
                 }
-                
-                if (!firstInstruction) {
-                    label.append("\\n");
-                }
-                label.append(escapeDOTString(instStr));
-                firstInstruction = false;
+            }
+            
+            // Sort by instruction index
+            blockNodes.sort((a, b) -> Integer.compare(a.instructionIndex, b.instructionIndex));
+            
+            // Connect sequential instructions within the block
+            for (int i = 0; i < blockNodes.size() - 1; i++) {
+                InstructionNode current = blockNodes.get(i);
+                InstructionNode next = blockNodes.get(i + 1);
+                writer.println("  \"" + current.nodeId + "\" -> \"" + next.nodeId + "\" [];");
             }
         }
         
-        writer.println("  \"" + escapeDOTString(block.getName()) + "\" [label=\"" + label + "\"];");
+        // Edges between blocks (control flow)
+        for (BasicBlock block : cfg.getBlocks()) {
+            InstructionNode lastNode = blockToLastNode.get(block);
+            if (lastNode == null) continue;
+            
+            if (lastNode.instruction instanceof ReturnInstruction) {
+                // Return instruction connects to exit
+                writer.println("  \"" + lastNode.nodeId + "\" -> \"" + funcInfo.exitNodeId + "\" [label=\"RETURN\"];");
+            } else {
+                // Analyze the block's control flow instructions to determine edge labels
+                generateControlFlowEdges(block, lastNode, blockToFirstNode, cfg, writer);
+            }
+        }
     }
     
-    private static void generateBlockEdgesFromInstructions(BasicBlock block, PrintWriter writer, ControlFlowGraph cfg) {
-        String blockName = escapeDOTString(block.getName());
-        List<BasicBlock> blockList = cfg.getBlocks();
+    private static void generateControlFlowEdges(BasicBlock block, InstructionNode lastNode, 
+                                                Map<BasicBlock, InstructionNode> blockToFirstNode, 
+                                                ControlFlowGraph cfg, PrintWriter writer) {
         List<Instruction> instructions = block.getInstructions();
         
+        // Look for control flow instructions in this block
         for (int i = 0; i < instructions.size(); i++) {
             Instruction instr = instructions.get(i);
             
             if (instr instanceof ConditionalJumpInstruction condJump) {
                 // Handle conditional jump - true branch
-                BasicBlock target = cfg.getBlockByLabel(condJump.getTarget());
-                if (target != null && blockList.contains(target)) {
-                    String targetName = escapeDOTString(target.getName());
-                    String edgeAttributes = getEdgeAttributes(block, target, "IF_TRUE");
-                    writer.println("  \"" + blockName + "\" -> \"" + targetName + "\" [" + edgeAttributes + "];");
+                BasicBlock trueTarget = cfg.getBlockByLabel(condJump.getTarget());
+                if (trueTarget != null && blockToFirstNode.containsKey(trueTarget)) {
+                    InstructionNode firstTrueNode = blockToFirstNode.get(trueTarget);
+                    writer.println("  \"" + lastNode.nodeId + "\" -> \"" + firstTrueNode.nodeId + "\" [label=\"IF_TRUE\"];");
                 }
                 
                 // Look for the immediately following goto instruction for false branch
                 if (i + 1 < instructions.size() && instructions.get(i + 1) instanceof JumpInstruction nextJump) {
-                    BasicBlock fallTarget = cfg.getBlockByLabel(nextJump.getTarget());
-                    if (fallTarget != null && blockList.contains(fallTarget)) {
-                        String fallTargetName = escapeDOTString(fallTarget.getName());
-                        String edgeAttributes = getEdgeAttributes(block, fallTarget, "IF_FALSE");
-                        writer.println("  \"" + blockName + "\" -> \"" + fallTargetName + "\" [" + edgeAttributes + "];");
+                    BasicBlock falseTarget = cfg.getBlockByLabel(nextJump.getTarget());
+                    if (falseTarget != null && blockToFirstNode.containsKey(falseTarget)) {
+                        InstructionNode firstFalseNode = blockToFirstNode.get(falseTarget);
+                        writer.println("  \"" + lastNode.nodeId + "\" -> \"" + firstFalseNode.nodeId + "\" [label=\"IF_FALSE\"];");
                     }
-                    i++; // Skip the next goto instruction since we processed it
+                    return; // We've handled both branches
                 }
             } else if (instr instanceof JumpInstruction jump) {
-                // Only process standalone goto instructions (not those following conditional jumps)
+                // Handle unconditional jump
                 BasicBlock target = cfg.getBlockByLabel(jump.getTarget());
-                if (target != null && blockList.contains(target)) {
-                    String targetName = escapeDOTString(target.getName());
-                    String edgeAttributes = getEdgeAttributes(block, target, "GOTO");
-                    writer.println("  \"" + blockName + "\" -> \"" + targetName + "\" [" + edgeAttributes + "];");
+                if (target != null && blockToFirstNode.containsKey(target)) {
+                    InstructionNode firstTargetNode = blockToFirstNode.get(target);
+                    writer.println("  \"" + lastNode.nodeId + "\" -> \"" + firstTargetNode.nodeId + "\" [label=\"GOTO\"];");
                 }
-            } else if (instr instanceof ReturnInstruction) {
-                writer.println("  \"" + blockName + "\" -> \"Exit\" [label=\"RETURN\"];");
+                return; // We've handled the jump
             }
         }
-    }
-    
-    private static String getEdgeAttributes(BasicBlock sourceBlock, BasicBlock targetBlock, String label) {
-        StringBuilder attributes = new StringBuilder();
-        attributes.append("label=\"").append(label).append("\"");
         
-        // Check if this is a backward edge (source block ID > target block ID)
-        int sourceId = extractBlockId(sourceBlock.getName());
-        int targetId = extractBlockId(targetBlock.getName());
-        
-        if (sourceId > targetId) {
-            // Backward edge: use different styling for cleaner routing
-            attributes.append(", constraint=false, style=dashed, color=blue, tailport=s, headport=n");
-        }
-        
-        return attributes.toString();
-    }
-    
-    private static int extractBlockId(String blockName) {
-        // Extract numeric ID from block name (e.g., "B2" -> 2)
-        if (blockName.startsWith("B")) {
-            try {
-                return Integer.parseInt(blockName.substring(1));
-            } catch (NumberFormatException e) {
-                return 0;
+        // If no control flow instructions found, use fall-through edges without labels
+        for (BasicBlock successor : block.getSuccessors()) {
+            InstructionNode firstSuccessorNode = blockToFirstNode.get(successor);
+            if (firstSuccessorNode != null) {
+                writer.println("  \"" + lastNode.nodeId + "\" -> \"" + firstSuccessorNode.nodeId + "\" [];");
             }
         }
-        return 0;
     }
     
     private static String buildFunctionSignature(ControlFlowGraph cfg) {
@@ -182,5 +221,25 @@ public class CFGGenerator {
                   .replace("\n", "\\n")
                   .replace("\r", "\\r")
                   .replace("\t", "\\t");
+    }
+    
+    private static class FunctionInfo {
+        int entryNodeId;
+        int exitNodeId;
+        List<InstructionNode> instructionNodes = new ArrayList<>();
+    }
+    
+    private static class InstructionNode {
+        int nodeId;
+        Instruction instruction;
+        int instructionIndex;
+        BasicBlock block;
+        
+        InstructionNode(int nodeId, Instruction instruction, int instructionIndex, BasicBlock block) {
+            this.nodeId = nodeId;
+            this.instruction = instruction;
+            this.instructionIndex = instructionIndex;
+            this.block = block;
+        }
     }
 }
