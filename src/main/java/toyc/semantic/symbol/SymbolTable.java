@@ -3,7 +3,7 @@ package toyc.semantic.symbol;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
-import toyc.semantic.type.Type;
+import toyc.language.type.Type;
 
 public class SymbolTable {
     private final SymbolTable parent;

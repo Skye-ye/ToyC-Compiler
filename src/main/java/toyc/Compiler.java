@@ -5,24 +5,30 @@ import java.io.IOException;
 import toyc.semantic.SemanticChecker;
 import toyc.util.LexerErrorListener;
 import toyc.util.ParserErrorListener;
-import toyc.ir.IRBuilder;
+import toyc.ir.ToyCIRBuilder;
 import toyc.ir.IRPrinter;
+import toyc.ir.IR;
 import toyc.ir.IROptimizer;
-import toyc.ir.ControlFlowGraph;
-import toyc.util.dotgen.CFGGenerator;
-import toyc.util.dotgen.CGGenerator;
-import toyc.util.dotgen.ICFGGenerator;
+import toyc.analysis.graph.callgraph.CallGraphBuilder;
+import toyc.analysis.graph.callgraph.CallGraph;
+import toyc.analysis.graph.cfg.CFGBuilder;
+import toyc.analysis.graph.cfg.CFG;
+import toyc.analysis.graph.icfg.ICFGBuilder;
+import toyc.analysis.graph.icfg.ICFG;
+import toyc.ir.stmt.Call;
+import toyc.ir.stmt.Stmt;
+import toyc.language.Function;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.ParseTree;
 
-import java.util.List;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Map;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 public class Compiler {
+    private static final Logger logger = LogManager.getLogger(Compiler.class);
+
     public static void main(String[] args) throws IOException {
         if (args.length < 1) {
             System.err.println("input path is required");
@@ -63,116 +69,95 @@ public class Compiler {
                     System.err.println("Semantic analysis failed.");
                 } else {
                     // Generate IR
-                    IRBuilder irBuilder = new IRBuilder();
+                    ToyCIRBuilder irBuilder = new ToyCIRBuilder();
                     irBuilder.visit(tree);
 
-                    // Store CFGs for external access
-                    List<ControlFlowGraph> cfgs = new ArrayList<>(irBuilder.getFunctions().values());
+                    // Optimize IR by removing redundant NOPs
+                    System.out.println("=== Optimizing IR ===");
+                    Map<String, IR> optimizedFunctions = IROptimizer.optimizeAll(irBuilder.getFunctions());
+                    irBuilder.updateFunctions(optimizedFunctions);
+                    System.out.println("IR optimization completed");
 
-                    // Optimize IR
-                    for (ControlFlowGraph cfg : cfgs) {
-                        IROptimizer.optimizeControlFlow(cfg);
-                    }
-
-                    // Generate CFG DOT files
-                    generateCFGDotFiles(cfgs, source);
-
-                    // Generate CG DOT file
-                    generateCGDotFile(irBuilder.getFunctions(), source);
+                    // Store IRs for external access
+                    Collection<IR> irs = irBuilder.getFunctions().values();
                     
-                    // Generate ICFG DOT file
-                    generateICFGDotFile(irBuilder.getFunctions(), source);
+                    // Set up World for analysis
+                    World world = new World();
+                    world.setIRBuilder(irBuilder);
+                    
+                    // Extract source file name from path for output directory naming
+                    String sourceFileName = java.nio.file.Paths.get(source).getFileName().toString();
+                    world.setSourceFileName(sourceFileName);
+                    
+                    // Find main function
+                    Function mainFunction = irBuilder.getFunctions().values().stream()
+                            .map(IR::getFunction)
+                            .filter(function -> "main".equals(function.getName()))
+                            .findFirst()
+                            .orElse(null);
+                    if (mainFunction != null) {
+                        world.setMainFunction(mainFunction);
+                    }
+                    World.set(world);
 
-                    // Print IR
-                    IRPrinter irPrinter = new IRPrinter();
-                    String irOutput = irPrinter.printProgram(irBuilder.getFunctions());
-                    System.out.println(irOutput);
+                    // Generate analysis outputs
+                    if (mainFunction != null) {
+                        generateCallGraph();
+                        generateCFGs(irs);
+                        generateICFG();
+                    }
+                    
+                    // Print IR using IRPrinter
+                    for (IR ir : irs) {
+                        IRPrinter.print(ir, System.out);
+                    }
                 }
             }
         }
     }
     
-    private void generateCFGDotFiles(List<ControlFlowGraph> cfgs, String sourceFilePath) {
+    private void generateCallGraph() {
         try {
-            // Create output directory
-            Path outputDir = Paths.get("output");
-            if (!Files.exists(outputDir)) {
-                Files.createDirectories(outputDir);
-            }
-            
-            // Extract source file name without extension for prefix
-            String sourceFileName = Paths.get(sourceFilePath).getFileName().toString();
-            String baseName = sourceFileName.replaceFirst("[.][^.]+$", ""); // Remove extension
-            
-            // Generate DOT file for each function
-            for (ControlFlowGraph cfg : cfgs) {
-                String functionName = cfg.getFunctionName();
-                String dotFileName = baseName + "_" + functionName + ".dot";
-                Path dotFilePath = outputDir.resolve(dotFileName);
-                
-                try {
-                    CFGGenerator.generateCFGFile(cfg, dotFilePath.toString());
-                    System.out.println("Generated CFG DOT file: " + dotFilePath);
-                } catch (IOException e) {
-                    System.err.println("Failed to generate DOT file for function " + functionName + ": " + e.getMessage());
-                }
-            }
-        } catch (IOException e) {
-            System.err.println("Failed to create output directory: " + e.getMessage());
+            System.out.println("=== Generating Call Graph ===");
+            CallGraphBuilder cgBuilder = new CallGraphBuilder(CallGraphBuilder.ID);
+            CallGraph<Call, Function> callGraph = cgBuilder.analyze();
+            // Store the call graph result in World for ICFG generation
+            World.get().storeResult(CallGraphBuilder.ID, callGraph);
+            System.out.println("Call graph generated with " + callGraph.getNumberOfFunctions() + 
+                             " functions and " + callGraph.getNumberOfEdges() + " edges");
+        } catch (Exception e) {
+            System.err.println("Failed to generate call graph: " + e.getMessage());
+            logger.error("Error occurred in call graph generation", e);
         }
     }
     
-    private void generateCGDotFile(Map<String, ControlFlowGraph> functions, String sourceFilePath) {
+    private void generateCFGs(Collection<IR> irs) {
         try {
-            // Create output directory
-            Path outputDir = Paths.get("output");
-            if (!Files.exists(outputDir)) {
-                Files.createDirectories(outputDir);
+            System.out.println("=== Generating Control Flow Graphs ===");
+            CFGBuilder cfgBuilder = new CFGBuilder(CFGBuilder.ID);
+            int cfgCount = 0;
+            for (IR ir : irs) {
+                CFG<Stmt> cfg = cfgBuilder.analyze(ir);
+                // Store the CFG result in the IR for ICFG generation
+                ir.storeResult(CFGBuilder.ID, cfg);
+                cfgCount++;
             }
-            
-            // Extract source file name without extension for prefix
-            String sourceFileName = Paths.get(sourceFilePath).getFileName().toString();
-            String baseName = sourceFileName.replaceFirst("[.][^.]+$", ""); // Remove extension
-            
-            // Generate CG DOT file
-            String cgFileName = baseName + "_cg.dot";
-            Path cgFilePath = outputDir.resolve(cgFileName);
-            
-            try {
-                CGGenerator.generateCGFile(functions, cgFilePath.toString());
-                System.out.println("Generated CG DOT file: " + cgFilePath);
-            } catch (IOException e) {
-                System.err.println("Failed to generate CG DOT file: " + e.getMessage());
-            }
-        } catch (IOException e) {
-            System.err.println("Failed to create output directory: " + e.getMessage());
+            System.out.println("Generated CFGs for " + cfgCount + " functions");
+        } catch (Exception e) {
+            System.err.println("Failed to generate CFGs: " + e.getMessage());
+            logger.error("Error occurred in CFG generation", e);
         }
     }
     
-    private void generateICFGDotFile(Map<String, ControlFlowGraph> functions, String sourceFilePath) {
+    private void generateICFG() {
         try {
-            // Create output directory
-            Path outputDir = Paths.get("output");
-            if (!Files.exists(outputDir)) {
-                Files.createDirectories(outputDir);
-            }
-            
-            // Extract source file name without extension for prefix
-            String sourceFileName = Paths.get(sourceFilePath).getFileName().toString();
-            String baseName = sourceFileName.replaceFirst("[.][^.]+$", ""); // Remove extension
-            
-            // Generate ICFG DOT file
-            String icfgFileName = baseName + "_icfg.dot";
-            Path icfgFilePath = outputDir.resolve(icfgFileName);
-            
-            try {
-                ICFGGenerator.generateICFGFile(functions, icfgFilePath.toString());
-                System.out.println("Generated ICFG DOT file: " + icfgFilePath);
-            } catch (IOException e) {
-                System.err.println("Failed to generate ICFG DOT file: " + e.getMessage());
-            }
-        } catch (IOException e) {
-            System.err.println("Failed to create output directory: " + e.getMessage());
+            System.out.println("=== Generating Inter-procedural Control Flow Graph ===");
+            ICFGBuilder icfgBuilder = new ICFGBuilder(ICFGBuilder.ID);
+            ICFG<Function, Stmt> icfg = icfgBuilder.analyze();
+            System.out.println("ICFG generated successfully");
+        } catch (Exception e) {
+            System.err.println("Failed to generate ICFG: " + e.getMessage());
+            logger.error("Error occurred in ICFG generation", e);
         }
     }
 }

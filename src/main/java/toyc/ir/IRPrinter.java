@@ -1,187 +1,62 @@
 package toyc.ir;
 
-import toyc.ir.instruction.*;
-import toyc.ir.value.Temporary;
-import toyc.ir.util.OperatorUtils;
-import toyc.ir.util.CounterManager;
+import toyc.ir.exp.CallExp;
+import toyc.ir.exp.Literal;
+import toyc.ir.stmt.Call;
+import toyc.ir.stmt.Stmt;
 
-import java.util.Map;
-import java.util.HashMap;
-import java.util.List;
-import java.util.ArrayList;
+import java.io.PrintStream;
+import java.util.Formatter;
+import java.util.stream.Collectors;
 
-public class IRPrinter implements InstructionVisitor {
-    private final StringBuilder output;
-    private final int indentLevel;
-    private int tempCounter;
-    private final Map<String, String> tempRenameMap;
-    
-    public IRPrinter() {
-        this.output = new StringBuilder();
-        this.indentLevel = 0;
-        this.tempCounter = 0;
-        this.tempRenameMap = new HashMap<>();
+public class IRPrinter {
+
+    public static void print(IR ir, PrintStream out) {
+        // print method signature
+        out.println("---------- " + ir.getFunction() + " ----------");
+        // print parameters
+        out.print("Parameters: ");
+        out.println(ir.getParams()
+                .stream()
+                .map(p -> p.getType() + " " + p)
+                .collect(Collectors.joining(", ")));
+        // print all variables
+        out.println("Variables:");
+        ir.getVars().forEach(v -> out.println(v.getType() + " " + v));
+        // print all statements
+        out.println("Statements:");
+        ir.forEach(s -> out.println(toString(s)));
     }
-    
-    public String printProgram(Map<String, ControlFlowGraph> functions) {
-        output.setLength(0);
-        
-        // Reset counters at the beginning of program printing
-        CounterManager.resetAll();
-        
-        output.append("=== ToyC Intermediate Representation ===\n\n");
-        
-        for (ControlFlowGraph cfg : functions.values()) {
-            printFunction(cfg);
-            output.append("\n");
-        }
-        
-        return output.toString();
-    }
-    
-    public String printFunction(ControlFlowGraph cfg) {
-        // Reset temporary counter and rename map for each function
-        tempCounter = 0;
-        tempRenameMap.clear();
-        
-        // Print LLVM-style function definition
-        String functionName = cfg.getFunctionName();
-        String returnType = "i32"; // Default to i32
-        String parameters = buildParameters(cfg);
-        
-        output.append("define ").append(returnType).append(" @")
-              .append(functionName).append("(").append(parameters).append(") {\n");
-        
-        // Use the blocks list directly to ensure we only print blocks that still exist
-        List<BasicBlock> blocksToProcess = new ArrayList<>();
-        for (BasicBlock block : cfg.getBlocks()) {
-            // Skip empty exit blocks
-            if (block == cfg.getExitBlock() && block.isEmpty()) {
-                continue;
-            }
-            blocksToProcess.add(block);
-        }
-        
-        for (int i = 0; i < blocksToProcess.size(); i++) {
-            boolean isLastBlock = (i == blocksToProcess.size() - 1);
-            printBasicBlock(blocksToProcess.get(i), isLastBlock);
-        }
-        
-        output.append("}\n");
-        return output.toString();
-    }
-    
-    private String buildParameters(ControlFlowGraph cfg) {
-        List<String> paramNames = cfg.getParameterNames();
-        if (paramNames.isEmpty()) {
-            return "";
-        }
-        
-        StringBuilder params = new StringBuilder();
-        for (int i = 0; i < paramNames.size(); i++) {
-            if (i > 0) {
-                params.append(", ");
-            }
-            params.append("i32 ").append(paramNames.get(i));
-        }
-        return params.toString();
-    }
-    
-    private void printBasicBlock(BasicBlock block, boolean isLastBlock) {
-        String blockLabel;
-        
-        // Use descriptive label if available, otherwise use block name
-        if (block.getDescriptiveLabel() != null) {
-            blockLabel = block.getDescriptiveLabel();
+
+    public static String toString(Stmt stmt) {
+        if (stmt instanceof Call) {
+            return toString((Call) stmt);
         } else {
-            blockLabel = block.getName();
-        }
-        
-        output.append(blockLabel).append(":\n");
-        
-        for (Instruction instruction : block.getInstructions()) {
-            indent();
-            instruction.accept(this);
-            output.append("\n");
-        }
-        
-        // Only add newline if not the last block
-        if (!isLastBlock) {
-            output.append("\n");
+            return String.format("%s %s;", position(stmt), stmt);
         }
     }
-    
-    private void indent() {
-        output.append("  ".repeat(Math.max(0, indentLevel + 1)));
-    }
-    
-    private String renameTemporary(String originalName) {
-        // If it's already a temporary variable (starts with 't' and followed by numbers)
-        if (originalName.matches("t\\d+")) {
-            return tempRenameMap.computeIfAbsent(originalName, k -> "t" + tempCounter++);
+
+    public static String toString(Call call) {
+        Formatter formatter = new Formatter();
+        formatter.format("%s ", position(call));
+        if (call.getResult() != null) {
+            // some variable names contain '%', which will be treated as
+            // format specifier by formatter, thus we need to escape it
+            String lhs = call.getResult().toString().replace("%", "%%");
+            formatter.format(lhs + " = ");
         }
-        return originalName;
+        CallExp ie = call.getCallExp();
+        formatter.format("%s ", "call");
+        formatter.format("<%s %s%s>%s",ie.getType(),
+                ie.getFunction().getName(), ie.getFunction().getParamTypes(),
+                ie.getArgsString());
+        return formatter.toString();
     }
-    
-    
-    @Override
-    public void visit(AssignInstruction instruction) {
-        String result = renameTemporary(instruction.getTarget().getName());
-        String source = renameTemporary(instruction.getSource().toString());
-        output.append(result).append(" = ").append(source);
-    }
-    
-    @Override
-    public void visit(BinaryOpInstruction instruction) {
-        String result = renameTemporary(instruction.getResult().toString());
-        String left = renameTemporary(instruction.getLeft().toString());
-        String right = renameTemporary(instruction.getRight().toString());
-        String op = OperatorUtils.operatorToString(instruction.getOperator());
-        output.append(result).append(" = ").append(left).append(" ").append(op).append(" ").append(right);
-    }
-    
-    @Override
-    public void visit(UnaryOpInstruction instruction) {
-        output.append(instruction.toString());
-    }
-    
-    @Override
-    public void visit(CallInstruction instruction) {
-        if (instruction.getResult() != null) {
-            String result = renameTemporary(instruction.getResult().toString());
-            output.append(result).append(" = ");
-        }
-        output.append("call ").append(instruction.getFunctionName()).append("(");
-        for (int i = 0; i < instruction.getArguments().size(); i++) {
-            if (i > 0) output.append(", ");
-            String arg = renameTemporary(instruction.getArguments().get(i).toString());
-            output.append(arg);
-        }
-        output.append(")");
-    }
-    
-    @Override
-    public void visit(ReturnInstruction instruction) {
-        output.append("ret");
-        if (instruction.getValue() != null) {
-            String value = renameTemporary(instruction.getValue().toString());
-            output.append(" ").append(value);
-        }
-    }
-    
-    @Override
-    public void visit(JumpInstruction instruction) {
-        output.append("goto ").append(instruction.getTarget().getName());
-    }
-    
-    @Override
-    public void visit(ConditionalJumpInstruction instruction) {
-        String condition = renameTemporary(instruction.getCondition().toString());
-        output.append("if ").append(condition).append(" goto ").append(instruction.getTarget().getName());
-    }
-    
-    @Override
-    public void visit(LabelInstruction instruction) {
-        output.append(instruction.toString());
+
+    public static String position(Stmt stmt) {
+        return "[" +
+                stmt.getIndex() +
+                "@L" + stmt.getLineNumber() +
+                ']';
     }
 }
