@@ -27,10 +27,13 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
     private final Map<String, IR> functions;
     private Function currentFunction;
     private final List<Stmt> stmts;
-    private final Map<String, Var> variables;
     private final Map<String, Function> functionMap;
     private int varCounter;
     private int tempCounter;
+    
+    // Scoped symbol table management
+    private final Stack<Map<String, Var>> scopeStack;
+    private final Map<String, Integer> variableCounters;
 
     // Control flow management
     private final Stack<Stmt> breakTargets;
@@ -39,33 +42,106 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
     public IRBuilder() {
         this.functions = new HashMap<>();
         this.stmts = new ArrayList<>();
-        this.variables = new HashMap<>();
         this.functionMap = new HashMap<>();
         this.varCounter = 0;
         this.tempCounter = 0;
         this.breakTargets = new Stack<>();
         this.continueTargets = new Stack<>();
+        this.scopeStack = new Stack<>();
+        this.variableCounters = new HashMap<>();
+    }
+    
+    /**
+     * Enters a new scope.
+     */
+    private void enterScope() {
+        scopeStack.push(new HashMap<>());
+    }
+    
+    /**
+     * Exits the current scope.
+     */
+    private void exitScope() {
+        if (!scopeStack.isEmpty()) {
+            scopeStack.pop();
+        }
+    }
+    
+    /**
+     * Defines a variable in the current scope with proper name resolution for shadowing.
+     * @param name The original variable name
+     * @param var The variable to define
+     */
+    private void defineVariable(String name, Var var) {
+        if (!scopeStack.isEmpty()) {
+            scopeStack.peek().put(name, var);
+        }
+    }
+    
+    /**
+     * Looks up a variable in the current scope stack.
+     * @param name The variable name to look up
+     * @return The variable if found, null otherwise
+     */
+    private Var lookupVariable(String name) {
+        // Search from current scope to outer scopes
+        for (int i = scopeStack.size() - 1; i >= 0; i--) {
+            Map<String, Var> scope = scopeStack.get(i);
+            if (scope.containsKey(name)) {
+                return scope.get(name);
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Gets all variables from all scopes.
+     * @return A list of all variables
+     */
+    private List<Var> getAllVariables() {
+        List<Var> allVars = new ArrayList<>();
+        for (Map<String, Var> scope : scopeStack) {
+            allVars.addAll(scope.values());
+        }
+        return allVars;
+    }
+    
+    /**
+     * Generates a unique variable name for shadowed variables.
+     * @param originalName The original variable name
+     * @return A unique name with _i suffix
+     */
+    private String generateUniqueVariableName(String originalName) {
+        int counter = variableCounters.getOrDefault(originalName, 0);
+        counter++;
+        variableCounters.put(originalName, counter);
+        return originalName + "_" + counter;
     }
 
     public IR buildIR(Function function) {
         this.currentFunction = function;
         this.stmts.clear();
-        this.variables.clear();
         this.varCounter = 0;
+        this.variableCounters.clear();
+        this.scopeStack.clear();
 
         // Create parameters
         List<Var> params = new ArrayList<>();
+        
+        // Enter function scope
+        enterScope();
+        
         for (int i = 0; i < function.getParamCount(); i++) {
             String paramName = function.getParamName(i);
             if (paramName == null) paramName = "param" + i;
             Var param = new Var(function, paramName, function.getParamType(i), i);
             params.add(param);
-            variables.put(paramName, param);
+            defineVariable(paramName, param);
         }
 
         Set<Var> returnVars = new HashSet<>();
         List<Var> allVars = new ArrayList<>(params);
-        allVars.addAll(variables.values());
+        allVars.addAll(getAllVariables());
 
         return new DefaultIR(function, params, returnVars, allVars, stmts);
     }
@@ -154,10 +230,14 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         currentFunction = functionMap.get(funcName);
 
         stmts.clear();
-        variables.clear();
+        scopeStack.clear();
+        variableCounters.clear();
         varCounter = 0; // Reset variable counter for each function
         tempCounter = 0; // Reset temp counter for each function
 
+        // Enter function scope
+        enterScope();
+        
         // Create parameter variables
         List<Var> params = new ArrayList<>();
         if (ctx.funcFParams() != null) {
@@ -166,7 +246,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
                 String paramName = param.IDENT().getText();
                 Var paramVar = new Var(currentFunction, paramName, IntType.INT, i);
                 params.add(paramVar);
-                variables.put(paramName, paramVar);
+                defineVariable(paramName, paramVar);
             }
         }
 
@@ -184,7 +264,8 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         List<Var> allVars = new ArrayList<>(params);
         
         // Add only local variables (not parameters) to allVars
-        for (Var var : variables.values()) {
+        List<Var> allScopedVars = getAllVariables();
+        for (Var var : allScopedVars) {
             boolean isParameter = false;
             for (Var param : params) {
                 if (param.getName().equals(var.getName())) {
@@ -214,9 +295,15 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
 
     @Override
     public RValue visitBlock(ToyCParser.BlockContext ctx) {
+        // Enter new scope for block
+        enterScope();
+        
         for (ToyCParser.StmtContext stmt : ctx.stmt()) {
             visit(stmt);
         }
+        
+        // Exit scope when leaving block
+        exitScope();
         return null;
     }
 
@@ -466,9 +553,17 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
 
     @Override
     public RValue visitVarDef(ToyCParser.VarDefContext ctx) {
-        String varName = ctx.IDENT().getText();
-        Var lVar = new Var(currentFunction, varName, IntType.INT, varCounter++);
-        variables.put(varName, lVar);
+        String originalName = ctx.IDENT().getText();
+        
+        // Check if variable is being shadowed
+        String actualName = originalName;
+        if (lookupVariable(originalName) != null) {
+            // Variable is being shadowed, generate unique name
+            actualName = generateUniqueVariableName(originalName);
+        }
+        
+        Var lVar = new Var(currentFunction, actualName, IntType.INT, varCounter++);
+        defineVariable(originalName, lVar);
 
         RValue initValue = visit(ctx.exp());
         if (initValue instanceof Literal literal) {
@@ -623,7 +718,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
     @Override
     public RValue visitLVal(ToyCParser.LValContext ctx) {
         String varName = ctx.IDENT().getText();
-        Var var = variables.get(varName);
+        Var var = lookupVariable(varName);
         if (var == null) {
             throw new RuntimeException("Undefined variable: " + varName);
         }

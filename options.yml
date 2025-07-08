@@ -1,7 +1,7 @@
 optionsFile: null
 printHelp: false
 inputFiles:
-- src/test/resources/toyc/oj/20_comprehensive.tc
+  - src/test/resources/toyc/oj/16_complex_syntax.tc
 worldBuilderClass: toyc.frontend.ToyCWorldBuilder
 outputDir: output
 preBuildIR: false
@@ -12,4 +12,4 @@ analyses:
   icfg: ""
 onlyGenPlan: false
 keepResult:
-- $KEEP-ALL
+  - $KEEP-ALL
