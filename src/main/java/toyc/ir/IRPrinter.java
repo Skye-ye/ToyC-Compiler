@@ -1,7 +1,6 @@
 package toyc.ir;
 
 import toyc.ir.exp.CallExp;
-import toyc.ir.exp.Literal;
 import toyc.ir.stmt.Call;
 import toyc.ir.stmt.Stmt;
 

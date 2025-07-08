@@ -1,10 +1,13 @@
 package toyc;
 
-import toyc.ir.ToyCIRBuilder;
+import toyc.config.Options;
+import toyc.ir.IRBuilder;
 import toyc.language.Function;
+import toyc.language.Program;
+import toyc.frontend.cache.CachedIRBuilder;
 import toyc.util.AbstractResultHolder;
 
-import java.io.File;
+import java.io.*;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,26 +17,31 @@ import java.util.List;
  * Note that the setters of this class are protected: they are supposed
  * to be called (once) by the world builder, not analysis classes.
  */
-public final class World extends AbstractResultHolder {
+public final class World extends AbstractResultHolder implements Serializable {
 
     /**
-     * The current world.
+     * ZA WARUDO, i.e., the current world.
      */
     private static World theWorld;
 
     /**
-     * The callbacks that will be invoked at resetting.
-     * This is useful to clear class-level caches.
+     * Notes: This field is {@code transient} because it
+     * should be set after deserialization.
      */
-    private static final List<Runnable> resetCallbacks = new ArrayList<>();
+    private Options options;
 
-    private ToyCIRBuilder irBuilder;
+    /**
+     * Notes: add {@code transient} to wrap this {@link IRBuilder} using
+     * {@link toyc.frontend.cache.CachedIRBuilder} in serialization.
+     *
+     * @see #writeObject(ObjectOutputStream)
+     * @see #readObject(ObjectInputStream)
+     */
+    private transient IRBuilder irBuilder;
+
+    private Program program;
 
     private Function mainFunction;
-
-    private String sourceFileName;
-
-    private final String baseOutputDir = System.getProperty("toyc.outputDir", "output");
 
     /**
      * Sets current world to {@code world}.
@@ -49,20 +57,23 @@ public final class World extends AbstractResultHolder {
         return theWorld;
     }
 
-    public static void registerResetCallback(Runnable callback) {
-        resetCallbacks.add(callback);
-    }
-
     public static void reset() {
         theWorld = null;
-        resetCallbacks.forEach(Runnable::run);
     }
 
-    public ToyCIRBuilder getIRBuilder() {
+    public Options getOptions() {
+        return options;
+    }
+
+    public void setOptions(Options options) {
+        checkAndSet("options", options);
+    }
+
+    public IRBuilder getIRBuilder() {
         return irBuilder;
     }
 
-    public void setIRBuilder(ToyCIRBuilder irBuilder) {
+    public void setIRBuilder(IRBuilder irBuilder) {
         checkAndSet("irBuilder", irBuilder);
     }
 
@@ -74,30 +85,12 @@ public final class World extends AbstractResultHolder {
         checkAndSet("mainFunction", mainFunction);
     }
 
-    public void setSourceFileName(String sourceFileName) {
-        checkAndSet("sourceFileName", sourceFileName);
+    public Program getProgram() {
+        return program;
     }
 
-    public String getSourceFileName() {
-        return sourceFileName;
-    }
-
-    public File getOutputDir() {
-        File outputDir;
-        if (sourceFileName != null) {
-            // Extract base name without extension
-            String baseName = sourceFileName.replaceFirst("[.][^.]+$", "");
-            outputDir = new File(baseOutputDir, baseName);
-        } else {
-            outputDir = new File(baseOutputDir);
-        }
-        
-        // Create the directory if it doesn't exist
-        if (!outputDir.exists()) {
-            outputDir.mkdirs();
-        }
-        
-        return outputDir;
+    public void setProgram(Program program) {
+        checkAndSet("program", program);
     }
 
     /**
@@ -115,5 +108,18 @@ public final class World extends AbstractResultHolder {
         } catch (NoSuchFieldException | IllegalAccessException e) {
             throw new RuntimeException("Failed to set World." + fieldName);
         }
+    }
+
+    @Serial
+    private void writeObject(ObjectOutputStream s) throws IOException {
+        s.defaultWriteObject();
+        s.writeObject(new CachedIRBuilder(irBuilder, program));
+    }
+
+    @Serial
+    private void readObject(ObjectInputStream s) throws IOException,
+            ClassNotFoundException {
+        s.defaultReadObject();
+        setIRBuilder((IRBuilder) s.readObject());
     }
 }

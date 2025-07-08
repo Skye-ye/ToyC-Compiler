@@ -1,5 +1,7 @@
 package toyc.analysis;
 
+import toyc.config.AnalysisConfig;
+
 /**
  * Abstract base class for all whole-program analyses.
  *
@@ -7,8 +9,8 @@ package toyc.analysis;
  */
 public abstract class ProgramAnalysis<R> extends Analysis {
 
-    protected ProgramAnalysis(String id) {
-        super(id);
+    protected ProgramAnalysis(AnalysisConfig config) {
+        super(config);
     }
 
     /**

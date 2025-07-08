@@ -4,6 +4,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import toyc.World;
 import toyc.analysis.FunctionAnalysis;
+import toyc.config.AnalysisConfig;
 import toyc.ir.IR;
 import toyc.ir.stmt.*;
 
@@ -20,9 +21,9 @@ public class CFGBuilder extends FunctionAnalysis<CFG<Stmt>> {
 
     private final File dumpDir;
 
-    public CFGBuilder(String id) {
-        super(id);
-        dumpDir = new File(World.get().getOutputDir(), CFG_DIR);
+    public CFGBuilder(AnalysisConfig config) {
+        super(config);
+        dumpDir = new File(World.get().getOptions().getOutputDir(), CFG_DIR);
         if (!dumpDir.exists()) {
             dumpDir.mkdirs();
         }

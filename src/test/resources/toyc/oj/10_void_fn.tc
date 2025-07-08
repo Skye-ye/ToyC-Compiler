@@ -1,0 +1,10 @@
+void print() {
+    int x = 1;
+    x = x + 1;
+    ;
+}
+
+int main() {
+    print();
+    return 0;
+}

@@ -1,5 +1,7 @@
 package toyc.language.type;
 
-public interface Type {
+import java.io.Serializable;
+
+public interface Type extends Serializable {
     String getName();
 }
