@@ -1,5 +1,6 @@
 package toyc.analysis;
 
+import toyc.config.AnalysisConfig;
 import toyc.ir.IR;
 
 /**
@@ -11,8 +12,8 @@ public abstract class FunctionAnalysis<R> extends Analysis {
 
     // private boolean isParallel;
 
-    protected FunctionAnalysis(String id) {
-        super(id);
+    protected FunctionAnalysis(AnalysisConfig config) {
+        super(config);
     }
 
     /**

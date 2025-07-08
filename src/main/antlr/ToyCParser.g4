@@ -73,6 +73,7 @@ lVal
 
 number
     : INTEGER_CONST
+    | MINUS INTEGER_CONST
     ;
 
 unaryOp

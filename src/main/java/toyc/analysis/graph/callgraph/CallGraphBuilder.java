@@ -4,6 +4,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import toyc.World;
 import toyc.analysis.ProgramAnalysis;
+import toyc.config.AnalysisConfig;
+import toyc.config.AnalysisOptions;
 import toyc.ir.stmt.Call;
 import toyc.language.Function;
 
@@ -17,28 +19,44 @@ public class CallGraphBuilder extends ProgramAnalysis<CallGraph<Call, Function>>
 
     private static final String CALL_GRAPH_FILE = "call-graph.dot";
 
-    private static final String REACHABLE_FUNCTIONS_FILE = "reachable-functions.txt";
+    private static final String REACHABLE_METHODS_FILE = "reachable-functions.txt";
 
     private static final String CALL_EDGES_FILE = "call-edges.txt";
 
-    public CallGraphBuilder(String id) {
-        super(id);
+    public CallGraphBuilder(AnalysisConfig config) {
+        super(config);
     }
 
     @Override
     public CallGraph<Call, Function> analyze() {
-        CGBuilder<Call, Function> builder = new ToyCCallGraphBuilder();
+        CGBuilder<Call, Function> builder;
+        builder = new ToyCCallGraphBuilder();
         CallGraph<Call, Function> callGraph = builder.build();
-        File outputDir = World.get().getOutputDir();
-        CallGraphs.dumpCallGraph(callGraph, new File(outputDir, CALL_GRAPH_FILE));
-        CallGraphs.dumpFunctions(callGraph, new File(outputDir, REACHABLE_FUNCTIONS_FILE));
-        CallGraphs.dumpCallEdges(callGraph, new File(outputDir, CALL_EDGES_FILE));
+        logStatistics(callGraph);
+        processOptions(callGraph, getOptions());
         return callGraph;
     }
 
     private static void logStatistics(CallGraph<Call, Function> callGraph) {
-        logger.info("Call graph has {} reachable functions and {} edges",
+        logger.info("Call graph has {} reachable methods and {} edges",
                 callGraph.getNumberOfFunctions(),
                 callGraph.getNumberOfEdges());
+    }
+
+    private static void processOptions(CallGraph<Call, Function> callGraph,
+                                       AnalysisOptions options) {
+        File outputDir = World.get().getOptions().getOutputDir();
+        if (options.getBoolean("dump")) {
+            CallGraphs.dumpCallGraph(callGraph,
+                    new File(outputDir, CALL_GRAPH_FILE));
+        }
+        if (options.getBoolean("dump-functions")) {
+            CallGraphs.dumpFunctions(callGraph,
+                    new File(outputDir, REACHABLE_METHODS_FILE));
+        }
+        if (options.getBoolean("dump-call-edges")) {
+            CallGraphs.dumpCallEdges(callGraph,
+                    new File(outputDir, CALL_EDGES_FILE));
+        }
     }
 }

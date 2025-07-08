@@ -7,16 +7,10 @@ build:
 	@$(GRADLEW) build
 
 run:
-ifndef FILE
-	$(error FILE is not set. Usage: make run FILE=<path/to/your/file.toyc>(relative to src/test/resources/toyc))
+ifndef ARGS
+	$(error ARGS is not set. Usage: make run ARGS='<arguments to pass to the program>')
 endif
-	@$(GRADLEW) run --args='src/test/resources/toyc/$(FILE)'
-
-dot:
-ifndef FILE
-	$(error FILE is not set. Usage: make dot FILE=<path/to/your/file.toyc>(relative to src/test/resources/toyc))
-endif
-	@$(GRADLEW) dotGen --args='src/test/resources/toyc/$(FILE)'
+	@$(GRADLEW) run --args='$(ARGS)'
 
 test:
 	@$(GRADLEW) test

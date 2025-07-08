@@ -12,6 +12,7 @@ abstract class AbstractICFG<Function, Node> implements ICFG<Function, Node> {
         this.callGraph = callGraph;
     }
 
+    @Override
     public Function entryFunction() {
         return callGraph.entryFunction();
     }

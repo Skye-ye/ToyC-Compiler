@@ -8,6 +8,7 @@ import toyc.util.Indexer;
 import toyc.util.ResultHolder;
 
 import javax.annotation.Nonnull;
+import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Stream;
@@ -16,7 +17,7 @@ import java.util.stream.Stream;
  * Intermediate representation for method body of non-abstract methods.
  * Each IR contains the variables and statements defined in a method.
  */
-public interface IR extends Iterable<Stmt>, Indexer<Stmt>, ResultHolder {
+public interface IR extends Iterable<Stmt>, Indexer<Stmt>, ResultHolder, Serializable {
 
     /**
      * @return the function that defines the content of this IR.

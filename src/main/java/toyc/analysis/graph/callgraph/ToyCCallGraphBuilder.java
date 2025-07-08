@@ -24,48 +24,33 @@ public class ToyCCallGraphBuilder implements CGBuilder<Call, Function> {
 
     @Override
     public CallGraph<Call, Function> build() {
-        return buildCallGraph();
+        return buildCallGraph(World.get().getMainFunction());
     }
 
-    private CallGraph<Call, Function> buildCallGraph() {
-        Map<String, IR> allIRs = World.get().getIRBuilder().getFunctions();
-        Function mainFunction = World.get().getMainFunction();
-        
-        logger.info("Building call graph for ToyC starting from function: {}", mainFunction.getName());
-        
+    private CallGraph<Call, Function> buildCallGraph(Function entry) {
         DefaultCallGraph callGraph = new DefaultCallGraph();
-        callGraph.addEntryFunction(mainFunction);
+        callGraph.addEntryFunction(entry);
         
         Queue<Function> workList = new ArrayDeque<>();
-        Set<Function> processed = new HashSet<>();
-        workList.add(mainFunction);
+        workList.add(entry);
         
         while (!workList.isEmpty()) {
             Function function = workList.poll();
             
-            if (!processed.add(function)) {
-                // Already processed this function
-                continue;
-            }
-            
+            // Always process call sites, even if the function was already reachable
             callGraph.addReachableFunction(function);
-            
-            // Find the IR for this function
-            IR ir = allIRs.get(function.getName());
-            if (ir != null) {
-                // Process all call sites in this function
-                ir.forEach(stmt -> {
-                    if (stmt instanceof Call call) {
+            Set<Call> callSites = callGraph.getCallSitesIn(function);
+            callSites.forEach(
+                    call -> {
                         Function callee = call.getCallExp().getFunction();
-                        if (callee != null) {
-                            if (!processed.contains(callee)) {
-                                workList.add(callee);
-                            }
-                            callGraph.addEdge(new Edge<>(call, callee));
+                        if (!callGraph.contains(callee)) {
+                            workList.add(callee);
                         }
+                        callGraph.addEdge(
+                                new Edge<>(call, callee)
+                        );
                     }
-                });
-            }
+            );
         }
         
         logger.info("Call graph built with {} functions and {} call edges", 

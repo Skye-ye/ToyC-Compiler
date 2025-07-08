@@ -16,6 +16,13 @@ public class DefaultCallGraph extends AbstractCallGraph<Call, Function> {
      */
     public void addEntryFunction(Function entryFunction) {
         super.addEntryFunction(entryFunction);
+        // Also process the entry function's Call statements
+        entryFunction.getIR().forEach(stmt -> {
+            if (stmt instanceof Call call) {
+                callSiteToContainer.put(call, entryFunction);
+                callSitesIn.put(entryFunction, call);
+            }
+        });
     }
 
     /**
@@ -25,16 +32,20 @@ public class DefaultCallGraph extends AbstractCallGraph<Call, Function> {
      * otherwise false.
      */
     public boolean addReachableFunction(Function function) {
-        if (reachableFunctions.add(function)) {
-                function.getIR().forEach(stmt -> {
-                    if (stmt instanceof Call call) {
-                        callSiteToContainer.put(call, function);
-                        callSitesIn.put(function, call);
-                    }
-                });
-            return true;
+        boolean wasAdded = reachableFunctions.add(function);
+        
+        // Always process the IR statements to find call sites, even if the function was already reachable
+        // This ensures that all call sites are collected properly
+        if (!callSitesIn.containsKey(function)) {
+            function.getIR().forEach(stmt -> {
+                if (stmt instanceof Call call) {
+                    callSiteToContainer.put(call, function);
+                    callSitesIn.put(function, call);
+                }
+            });
         }
-        return false;
+        
+        return wasAdded;
     }
 
     /**

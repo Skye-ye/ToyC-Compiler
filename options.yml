@@ -1,0 +1,15 @@
+optionsFile: null
+printHelp: false
+inputFiles:
+- src/test/resources/toyc/oj/20_comprehensive.tc
+worldBuilderClass: toyc.frontend.ToyCWorldBuilder
+outputDir: output
+preBuildIR: false
+worldCacheMode: false
+scope: REACHABLE
+planFile: null
+analyses:
+  icfg: ""
+onlyGenPlan: false
+keepResult:
+- $KEEP-ALL

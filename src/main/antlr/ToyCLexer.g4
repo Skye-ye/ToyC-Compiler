@@ -60,10 +60,10 @@ SEMICOLON: ';';
 
 IDENT: [_a-zA-Z] [_a-zA-Z0-9]* ;
 
-INTEGER_CONST: '-'? [1-9] [0-9]* | '0';
+INTEGER_CONST: [1-9] [0-9]* | '0';
 
 WS: [ \t\r\n] + -> skip;
 
-LINE_COMMENT: '//'.*? '\n' -> skip ;
+MULTILINE_COMMENT: '/*' .*? '*/' -> skip ;
 
-MULTILINE_COMMENT: '/*'.*? '*/' -> skip ;
+LINE_COMMENT: '//' ~[*\r\n] ~[\r\n]* -> skip ;

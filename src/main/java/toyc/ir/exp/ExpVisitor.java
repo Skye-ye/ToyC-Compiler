@@ -1,7 +1,5 @@
 package toyc.ir.exp;
 
-import toyc.language.Function;
-
 public interface ExpVisitor<T> {
 
     // var

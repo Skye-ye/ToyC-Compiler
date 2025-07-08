@@ -2,162 +2,112 @@ package toyc;
 
 import java.io.IOException;
 
-import toyc.semantic.SemanticChecker;
-import toyc.util.LexerErrorListener;
-import toyc.util.ParserErrorListener;
-import toyc.ir.ToyCIRBuilder;
-import toyc.ir.IRPrinter;
-import toyc.ir.IR;
-import toyc.ir.IROptimizer;
-import toyc.analysis.graph.callgraph.CallGraphBuilder;
-import toyc.analysis.graph.callgraph.CallGraph;
-import toyc.analysis.graph.cfg.CFGBuilder;
-import toyc.analysis.graph.cfg.CFG;
-import toyc.analysis.graph.icfg.ICFGBuilder;
-import toyc.analysis.graph.icfg.ICFG;
-import toyc.ir.stmt.Call;
-import toyc.ir.stmt.Stmt;
-import toyc.language.Function;
+import toyc.analysis.AnalysisManager;
+import toyc.config.*;
+import toyc.frontend.cache.CachedWorldBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.antlr.v4.runtime.*;
-import org.antlr.v4.runtime.tree.ParseTree;
+import toyc.util.Timer;
+import toyc.util.collection.Lists;
 
-import java.util.Collection;
-import java.util.Map;
+import java.io.InputStream;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 
 public class Compiler {
     private static final Logger logger = LogManager.getLogger(Compiler.class);
 
-    public static void main(String[] args) throws IOException {
-        if (args.length < 1) {
-            System.err.println("input path is required");
-            return;
-        }
-        Compiler compiler = new Compiler();
-        compiler.compile(args[0]);
-    }
-    
-    public void compile(String source) throws IOException {
-        CharStream input = CharStreams.fromFileName(source);
-        ToyCLexer toyCLexer = new ToyCLexer(input);
-
-        toyCLexer.removeErrorListeners();
-        LexerErrorListener lexerErrorListener = new LexerErrorListener();
-        toyCLexer.addErrorListener(lexerErrorListener);
-
-        // Check for lexer errors
-        if (lexerErrorListener.hasError()) {
-            lexerErrorListener.printLexerErrorInformation();
-        } else {
-            CommonTokenStream tokens = new CommonTokenStream(toyCLexer);
-            ToyCParser toyCParser = new ToyCParser(tokens);
-            toyCParser.removeErrorListeners();
-            ParserErrorListener parserErrorListener = new ParserErrorListener();
-            toyCParser.addErrorListener(parserErrorListener);
-            ParseTree tree = toyCParser.program();
-
-            // Check for parser errors
-            if (parserErrorListener.hasError()) {
-                parserErrorListener.printParserErrorInformation();
-            } else {
-
-                // Perform semantic analysis
-                SemanticChecker semanticChecker = new SemanticChecker();
-                semanticChecker.visit(tree);
-                if (semanticChecker.hasError()) {
-                    System.err.println("Semantic analysis failed.");
-                } else {
-                    // Generate IR
-                    ToyCIRBuilder irBuilder = new ToyCIRBuilder();
-                    irBuilder.visit(tree);
-
-                    // Optimize IR by removing redundant NOPs
-                    System.out.println("=== Optimizing IR ===");
-                    Map<String, IR> optimizedFunctions = IROptimizer.optimizeAll(irBuilder.getFunctions());
-                    irBuilder.updateFunctions(optimizedFunctions);
-                    System.out.println("IR optimization completed");
-
-                    // Store IRs for external access
-                    Collection<IR> irs = irBuilder.getFunctions().values();
-                    
-                    // Set up World for analysis
-                    World world = new World();
-                    world.setIRBuilder(irBuilder);
-                    
-                    // Extract source file name from path for output directory naming
-                    String sourceFileName = java.nio.file.Paths.get(source).getFileName().toString();
-                    world.setSourceFileName(sourceFileName);
-                    
-                    // Find main function
-                    Function mainFunction = irBuilder.getFunctions().values().stream()
-                            .map(IR::getFunction)
-                            .filter(function -> "main".equals(function.getName()))
-                            .findFirst()
-                            .orElse(null);
-                    if (mainFunction != null) {
-                        world.setMainFunction(mainFunction);
-                    }
-                    World.set(world);
-
-                    // Generate analysis outputs
-                    if (mainFunction != null) {
-                        generateCallGraph();
-                        generateCFGs(irs);
-                        generateICFG();
-                    }
-                    
-                    // Print IR using IRPrinter
-                    for (IR ir : irs) {
-                        IRPrinter.print(ir, System.out);
-                    }
+    public static void main(String... args) throws IOException {
+        Timer.runAndCount(() -> {
+            Options options = processArgs(args);
+            // Only proceed with analysis if not showing help
+            if (!options.isPrintHelp()) {
+                LoggerConfigs.setOutput(options.getOutputDir());
+                Plan plan = processConfigs(options);
+                if (plan.analyses().isEmpty()) {
+                    logger.info("No analyses are specified");
+                    System.exit(0);
                 }
+                buildWorld(options, plan.analyses());
+                executePlan(plan);
             }
-        }
+        }, "ToyC Compiler");
+        LoggerConfigs.reconfigure();
     }
-    
-    private void generateCallGraph() {
-        try {
-            System.out.println("=== Generating Call Graph ===");
-            CallGraphBuilder cgBuilder = new CallGraphBuilder(CallGraphBuilder.ID);
-            CallGraph<Call, Function> callGraph = cgBuilder.analyze();
-            // Store the call graph result in World for ICFG generation
-            World.get().storeResult(CallGraphBuilder.ID, callGraph);
-            System.out.println("Call graph generated with " + callGraph.getNumberOfFunctions() + 
-                             " functions and " + callGraph.getNumberOfEdges() + " edges");
-        } catch (Exception e) {
-            System.err.println("Failed to generate call graph: " + e.getMessage());
-            logger.error("Error occurred in call graph generation", e);
+
+    private static Options processArgs(String... args) {
+        Options options = Options.parse(args);
+        if (options.isPrintHelp() || args.length == 0) {
+            options.printHelp();
+            System.exit(0);
         }
+        return options;
     }
-    
-    private void generateCFGs(Collection<IR> irs) {
-        try {
-            System.out.println("=== Generating Control Flow Graphs ===");
-            CFGBuilder cfgBuilder = new CFGBuilder(CFGBuilder.ID);
-            int cfgCount = 0;
-            for (IR ir : irs) {
-                CFG<Stmt> cfg = cfgBuilder.analyze(ir);
-                // Store the CFG result in the IR for ICFG generation
-                ir.storeResult(CFGBuilder.ID, cfg);
-                cfgCount++;
+
+    private static Plan processConfigs(Options options) {
+        InputStream content = Configs.getAnalysisConfig();
+        List<AnalysisConfig> analysisConfigs = AnalysisConfig.parseConfigs(content);
+        ConfigManager manager = new ConfigManager(analysisConfigs);
+        AnalysisPlanner planner = new AnalysisPlanner(
+                manager, options.getKeepResult());
+        boolean reachableScope = options.getScope().equals(Scope.REACHABLE);
+        if (!options.getAnalyses().isEmpty()) {
+            // Analyses are specified by options
+            List<PlanConfig> planConfigs = PlanConfig.readConfigs(options);
+            manager.overwriteOptions(planConfigs);
+            Plan plan = planner.expandPlan(
+                    planConfigs, reachableScope);
+            // Output analysis plan to file.
+            // For outputting purpose, we first convert AnalysisConfigs
+            // in the expanded plan to PlanConfigs
+            planConfigs = Lists.map(plan.analyses(),
+                    ac -> new PlanConfig(ac.getId(), ac.getOptions()));
+            // TODO: turn off output in testing?
+            PlanConfig.writeConfigs(planConfigs, options.getOutputDir());
+            if (!options.isOnlyGenPlan()) {
+                // This run not only generates plan file but also executes it
+                return plan;
             }
-            System.out.println("Generated CFGs for " + cfgCount + " functions");
-        } catch (Exception e) {
-            System.err.println("Failed to generate CFGs: " + e.getMessage());
-            logger.error("Error occurred in CFG generation", e);
+        } else if (options.getPlanFile() != null) {
+            // Analyses are specified by file
+            List<PlanConfig> planConfigs = PlanConfig.readConfigs(options.getPlanFile());
+            manager.overwriteOptions(planConfigs);
+            return planner.makePlan(planConfigs, reachableScope);
         }
+        // No analyses are specified
+        return Plan.emptyPlan();
     }
-    
-    private void generateICFG() {
-        try {
-            System.out.println("=== Generating Inter-procedural Control Flow Graph ===");
-            ICFGBuilder icfgBuilder = new ICFGBuilder(ICFGBuilder.ID);
-            ICFG<Function, Stmt> icfg = icfgBuilder.analyze();
-            System.out.println("ICFG generated successfully");
-        } catch (Exception e) {
-            System.err.println("Failed to generate ICFG: " + e.getMessage());
-            logger.error("Error occurred in ICFG generation", e);
-        }
+
+    public static void buildWorld(String... args) {
+        Options options = Options.parse(args);
+        LoggerConfigs.setOutput(options.getOutputDir());
+        Plan plan = processConfigs(options);
+        buildWorld(options, plan.analyses());
+        LoggerConfigs.reconfigure();
+    }
+
+    private static void buildWorld(Options options, List<AnalysisConfig> analyses) {
+        Timer.runAndCount(() -> {
+            try {
+                Class<? extends WorldBuilder> builderClass = options.getWorldBuilderClass();
+                Constructor<? extends WorldBuilder> builderCtor = builderClass.getConstructor();
+                WorldBuilder builder = builderCtor.newInstance();
+                if (options.isWorldCacheMode()) {
+                    builder = new CachedWorldBuilder(builder);
+                }
+                builder.build(options, analyses);
+                logger.info("{} functions in the world",
+                        World.get().getProgram().getFunctionCount());
+            } catch (InstantiationException | IllegalAccessException |
+                     NoSuchMethodException | InvocationTargetException e) {
+                System.err.println("Failed to build world due to " + e);
+                System.exit(1);
+            }
+        }, "WorldBuilder");
+    }
+
+    private static void executePlan(Plan plan) {
+        new AnalysisManager(plan).execute();
     }
 }

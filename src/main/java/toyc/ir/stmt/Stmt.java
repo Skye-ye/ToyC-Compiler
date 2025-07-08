@@ -4,13 +4,14 @@ import toyc.ir.exp.LValue;
 import toyc.ir.exp.RValue;
 import toyc.util.Indexable;
 
+import java.io.Serializable;
 import java.util.Optional;
 import java.util.Set;
 
 /**
  * Representation of statements in IR.
  */
-public interface Stmt extends Indexable {
+public interface Stmt extends Indexable, Serializable {
 
     /**
      * @return the index of this Stmt in the container IR.

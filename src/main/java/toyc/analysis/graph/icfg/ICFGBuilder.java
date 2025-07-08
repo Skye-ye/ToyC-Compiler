@@ -9,7 +9,7 @@ import toyc.analysis.graph.callgraph.CallGraphBuilder;
 import toyc.analysis.graph.cfg.CFG;
 import toyc.analysis.graph.cfg.CFGBuilder;
 import toyc.analysis.graph.cfg.CFGDumper;
-import toyc.ir.IR;
+import toyc.config.AnalysisConfig;
 import toyc.ir.stmt.Stmt;
 import toyc.language.Function;
 import toyc.util.Indexer;
@@ -25,7 +25,7 @@ public class ICFGBuilder extends ProgramAnalysis<ICFG<Function, Stmt>> {
 
     private static final Logger logger = LogManager.getLogger(ICFGBuilder.class);
 
-    public ICFGBuilder(String config) {
+    public ICFGBuilder(AnalysisConfig config) {
         super(config);
     }
 
@@ -45,7 +45,8 @@ public class ICFGBuilder extends ProgramAnalysis<ICFG<Function, Stmt>> {
         } else {
             fileName = "icfg.dot";
         }
-        File dotFile = new File(World.get().getOutputDir(), fileName);
+        File dotFile = new File(World.get().getOptions().getOutputDir(),
+                fileName);
         logger.info("Dumping ICFG to {}", dotFile.getAbsolutePath());
         Indexer<Stmt> indexer = new SimpleIndexer<>();
         new DotDumper<Stmt>()
@@ -73,9 +74,6 @@ public class ICFGBuilder extends ProgramAnalysis<ICFG<Function, Stmt>> {
     }
 
     static CFG<Stmt> getCFGOf(Function function) {
-        // Get CFG from the same IR instance where it was stored during generation
-        // Use function name as key since IRBuilder stores by name
-        IR ir = World.get().getIRBuilder().getFunctions().get(function.getName());
-        return ir.getResult(CFGBuilder.ID);
+        return function.getIR().getResult(CFGBuilder.ID);
     }
 }

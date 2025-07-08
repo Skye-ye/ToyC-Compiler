@@ -88,8 +88,8 @@ public final class CallGraphs {
         Map<Call, String> callReps =
                 Maps.newOrderedMap(Comparator.comparing(Call::getIndex));
         
-        // Get IR from IRBuilder instead of Function.getIR()
-        toyc.ir.IR ir = toyc.World.get().getIRBuilder().getFunctions().get(caller.getName());
+        // Get existing IR from function
+        toyc.ir.IR ir = caller.getIR();
         if (ir == null) {
             return callReps;
         }
