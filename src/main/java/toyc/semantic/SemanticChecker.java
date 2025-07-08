@@ -4,10 +4,10 @@ import java.util.List;
 import java.util.ArrayList;
 import toyc.ToyCParser;
 import toyc.ToyCParserBaseVisitor;
-import toyc.semantic.type.FunctionType;
-import toyc.semantic.type.IntType;
-import toyc.semantic.type.Type;
-import toyc.semantic.type.VoidType;
+import toyc.language.type.FunctionType;
+import toyc.language.type.IntType;
+import toyc.language.type.Type;
+import toyc.language.type.VoidType;
 import toyc.semantic.symbol.SymbolTable;
 
 public class SemanticChecker extends ToyCParserBaseVisitor<Type> {
@@ -47,9 +47,9 @@ public class SemanticChecker extends ToyCParserBaseVisitor<Type> {
         // Determine the return type of the function
         Type returnType;
         if (ctx.funcType().INT() != null) {
-            returnType = IntType.getIntType();
+            returnType = IntType.INT;
         } else {
-            returnType = VoidType.getVoidType();
+            returnType = VoidType.VOID;
         }
 
         // Create sub symbol table to store parameters
@@ -65,7 +65,7 @@ public class SemanticChecker extends ToyCParserBaseVisitor<Type> {
         }
 
         curSymbolTable = curSymbolTable.getParent();
-        FunctionType funcType = new FunctionType(returnType, paramTypes);
+        FunctionType funcType = new FunctionType(paramTypes, returnType);
         curSymbolTable.define(funcName, funcType);
         curFuncType = funcType;
 
@@ -106,7 +106,7 @@ public class SemanticChecker extends ToyCParserBaseVisitor<Type> {
         }
 
         if (ctx.INT() != null) {
-            curSymbolTable.define(varName, IntType.getIntType());
+            curSymbolTable.define(varName, IntType.INT);
         }
 
         return null;
@@ -160,12 +160,12 @@ public class SemanticChecker extends ToyCParserBaseVisitor<Type> {
             if (ctx.exp() != null) {
                 returnType = visitExp(ctx.exp());
             } else { // No expression followed by return, return void
-                returnType = VoidType.getVoidType();
+                returnType = VoidType.VOID;
             }
             if (returnType == null) {
                 return null;
             }
-            Type funcReturnType = curFuncType.getReturnType();
+            Type funcReturnType = curFuncType.returnType();
             if (!returnType.equals(funcReturnType)) {
                 OutputHelper.printTypeError(OutputHelper.ErrorType.TYPE_MISMATCH_RETURN,
                         ctx.RETURN().getSymbol().getLine(),
@@ -224,7 +224,7 @@ public class SemanticChecker extends ToyCParserBaseVisitor<Type> {
             hasError = true;
             return null;
         }
-        curSymbolTable.define(varName, IntType.getIntType());
+        curSymbolTable.define(varName, IntType.INT);
         return null;
     }
 
@@ -245,7 +245,7 @@ public class SemanticChecker extends ToyCParserBaseVisitor<Type> {
                 hasError = true;
                 return null;
             }
-            return IntType.getIntType();
+            return IntType.INT;
         } else if (ctx.funcName() != null) { // Function call
             String funcName = ctx.funcName().IDENT().getText();
             Type type = curSymbolTable.resolve(funcName);
@@ -274,7 +274,7 @@ public class SemanticChecker extends ToyCParserBaseVisitor<Type> {
                 return null;
             }
 
-            Type returnType = ((FunctionType) type).getReturnType();
+            Type returnType = ((FunctionType) type).returnType();
             
             // Check if void function is used as rvalue (in conditions)
             if (returnType instanceof VoidType && isUsedAsRvalue(ctx)) {
@@ -345,7 +345,7 @@ public class SemanticChecker extends ToyCParserBaseVisitor<Type> {
                 return null;
             }
             
-            return IntType.getIntType();
+            return IntType.INT;
         } else { // lVal
             ToyCParser.LValContext lValCtx = ctx.lVal();
             return visitLVal(lValCtx);
@@ -376,7 +376,7 @@ public class SemanticChecker extends ToyCParserBaseVisitor<Type> {
         }
 
         if (ctx == null) { // no arguments
-            return funcType.getParameterTypes().isEmpty();
+            return funcType.parameterTypes().isEmpty();
         }
 
         List<Type> argTypes = new ArrayList<>();
@@ -647,7 +647,7 @@ public class SemanticChecker extends ToyCParserBaseVisitor<Type> {
             return;
         }
 
-        if (!(mainFuncType.getReturnType() instanceof IntType)) {
+        if (!(mainFuncType.returnType() instanceof IntType)) {
             OutputHelper.printTypeError(OutputHelper.ErrorType.MAIN_RETURN_NON_INT_TYPE);
             hasError = true;
         }
@@ -661,7 +661,7 @@ public class SemanticChecker extends ToyCParserBaseVisitor<Type> {
             return;
         }
 
-        if (!mainFuncType.getParameterTypes().isEmpty()) {
+        if (!mainFuncType.parameterTypes().isEmpty()) {
             OutputHelper.printTypeError(OutputHelper.ErrorType.MAIN_NON_EMPTY_PARAM);
             hasError = true;
         }
