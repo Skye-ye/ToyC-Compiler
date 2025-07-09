@@ -3,11 +3,14 @@ package toyc.analysis;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import toyc.World;
+import toyc.analysis.graph.callgraph.CallGraph;
+import toyc.analysis.graph.callgraph.CallGraphBuilder;
 import toyc.config.AnalysisConfig;
 import toyc.ir.IR;
 import toyc.ir.IRPrinter;
 import toyc.ir.stmt.Stmt;
 import toyc.language.Function;
+import toyc.util.collection.CollectionUtils;
 import toyc.util.collection.Maps;
 import toyc.util.collection.MultiMap;
 import toyc.util.collection.Pair;
@@ -18,7 +21,13 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -66,6 +75,9 @@ public class ResultProcessor extends ProgramAnalysis {
         Map<Boolean, List<String>> groups = ((List<String>) getOptions().get("analyses"))
                 .stream()
                 .collect(Collectors.groupingBy(id -> World.get().getResult(id) != null));
+        if (groups.containsKey(true)) {
+            processInterResults(groups.get(true));
+        }
         if (groups.containsKey(false)) {
             processIntraResults(groups.get(false));
         }
@@ -123,6 +135,28 @@ public class ResultProcessor extends ProgramAnalysis {
         }
     }
 
+    private void processInterResults(List<String> analyses) {
+        Comparator<Function> comp = (m1, m2) -> {
+            if (m1.getName().equals(m2.getName())) {
+                return m1.getIR().getStmt(0).getLineNumber() -
+                        m2.getIR().getStmt(0).getLineNumber();
+            } else {
+                return m1.getName().compareTo(m2.getName());
+            }
+        };
+        CallGraph<?, Function> cg = World.get().getResult(CallGraphBuilder.ID);
+        Stream<Function> functions;
+        if (cg.getNumberOfFunctions() == 0) {
+            // Before the call graph construction has been implemented,
+            // there are no methods in the call graph. In this case,
+            // we compare the results for all application methods.
+            functions = World.get().getProgram().allFunctions().sorted(comp);
+        } else {
+            functions = cg.reachableFunctions().sorted(comp);
+        }
+        processResults(functions, analyses, (f, id) -> World.get().getResult(id));
+    }
+
     private void processIntraResults(List<String> analyses) {
         Stream<Function> functions = World.get()
                 .getProgram()
@@ -167,8 +201,10 @@ public class ResultProcessor extends ProgramAnalysis {
      * Here we specially handle Stmt by calling IRPrint.toString().
      */
     private static String toString(Object o) {
-        if (o instanceof Stmt) {
-            return IRPrinter.toString((Stmt) o);
+        if (o instanceof Stmt s) {
+            return IRPrinter.toString(s);
+        } else if (o instanceof Collection<?> c) {
+            return CollectionUtils.toString(c);
         } else {
             return Objects.toString(o);
         }
@@ -203,21 +239,38 @@ public class ResultProcessor extends ProgramAnalysis {
                             " should be included");
                 }
             });
-        } else if (result instanceof StmtResult<?> StmtResult) {
+        } else if (result instanceof StmtResult<?> stmtResult) {
             Set<String> lines = inputs.get(new Pair<>(function.toString(), id));
-            IR ir = function.getIR();
-            ir.forEach(stmt -> {
-                String stmtStr = toString(stmt);
-                String given = toString(stmt, StmtResult);
-                for (String line : lines) {
-                    if (line.startsWith(stmtStr) && !line.equals(given)) {
-                        int idx = stmtStr.length();
-                        mismatches.add(String.format("%s %s expected: %s, given: %s",
-                                function, stmtStr, line.substring(idx + 1),
-                                given.substring(idx + 1)));
-                    }
-                }
-            });
+            // if the expected input does not contain the results
+            // for the given method, just skip
+            if (lines.isEmpty()) {
+                return;
+            }
+            function.getIR()
+                    .stmts()
+                    .filter(stmtResult::isRelevant)
+                    .forEach(stmt -> {
+                        String stmtStr = toString(stmt);
+                        String given = toString(stmt, stmtResult);
+                        boolean foundExpeceted = false;
+                        for (String line : lines) {
+                            if (line.startsWith(stmtStr)) {
+                                foundExpeceted = true;
+                                if (!line.equals(given)) {
+                                    int idx = stmtStr.length();
+                                    mismatches.add(String.format("%s %s expected: %s, given: %s",
+                                            function, stmtStr,
+                                            line.substring(idx + 1),
+                                            given.substring(idx + 1)));
+                                }
+                            }
+                        }
+                        if (!foundExpeceted) {
+                            int idx = stmtStr.length();
+                            mismatches.add(String.format("%s %s expected: null, given: %s",
+                                    function, stmtStr, given.substring(idx + 1)));
+                        }
+                    });
         } else if (inputResult.size() == 1) {
             if (!toString(result).equals(getOne(inputResult))) {
                 mismatches.add(String.format("%s expected: %s, given: %s",

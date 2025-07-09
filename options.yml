@@ -8,7 +8,7 @@ worldCacheMode: false
 scope: REACHABLE
 planFile: null
 analyses:
-  const-prop: ""
+  inter-const-prop: ""
   process-result: ""
 onlyGenPlan: false
 keepResult:
