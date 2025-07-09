@@ -9,7 +9,6 @@ import toyc.config.Options;
 import toyc.util.Timer;
 
 import java.io.*;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -27,6 +26,31 @@ public class CachedWorldBuilder implements WorldBuilder {
     public CachedWorldBuilder(WorldBuilder delegate) {
         this.delegate = delegate;
         logger.info("The world cache mode is enabled.");
+    }
+
+    public static File getWorldCacheFile(Options options) {
+        File cacheDir = new File(CACHE_DIR);
+        if (!cacheDir.exists()) {
+            cacheDir.mkdirs();
+        }
+        return new File(cacheDir,
+                "world-cache-" + getWorldCacheHash(options) + ".bin").getAbsoluteFile();
+    }
+
+    private static int getWorldCacheHash(Options options) {
+        int result = options.getInputFile().hashCode();
+        result = 31 * result + (options.getWorldBuilderClass() != null
+                ? options.getWorldBuilderClass().getName().hashCode() : 0);
+        result = 31 * result + (options.isPreBuildIR() ? 1 : 0);
+        result = 31 * result + (options.isWorldCacheMode() ? 1 : 0);
+        // add the timestamp to the cache key calculation
+        String path = options.getInputFile();
+        File file = new File(path);
+        if (file.exists()) {
+            result = 31 * result + (int) file.lastModified();
+        }
+        result = Math.abs(result);
+        return result;
     }
 
     @Override
@@ -91,32 +115,5 @@ public class CachedWorldBuilder implements WorldBuilder {
             timer.stop();
             logger.info(timer);
         }
-    }
-
-    public static File getWorldCacheFile(Options options) {
-        File cacheDir = new File(CACHE_DIR);
-        if (!cacheDir.exists()) {
-            cacheDir.mkdirs();
-        }
-        return new File(cacheDir,
-                "world-cache-" + getWorldCacheHash(options) + ".bin").getAbsoluteFile();
-    }
-
-    private static int getWorldCacheHash(Options options) {
-        int result = options.getInputFiles().hashCode();
-        result = 31 * result + (options.getWorldBuilderClass() != null
-                ? options.getWorldBuilderClass().getName().hashCode() : 0);
-        result = 31 * result + (options.isPreBuildIR() ? 1 : 0);
-        result = 31 * result + (options.isWorldCacheMode() ? 1 : 0);
-        // add the timestamp to the cache key calculation
-        List<String> paths = new ArrayList<>(options.getInputFiles());
-        for (String path : paths) {
-            File file = new File(path);
-            if (file.exists()) {
-                result = 31 * result + (int) file.lastModified();
-            }
-        }
-        result = Math.abs(result);
-        return result;
     }
 }

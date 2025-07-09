@@ -16,12 +16,12 @@ import toyc.frontend.semantic.SemanticChecker;
 import toyc.frontend.util.LexerErrorListener;
 import toyc.frontend.util.ParserErrorListener;
 import toyc.ir.IR;
-import toyc.ir.IRPrinter;
 import toyc.language.Function;
 import toyc.language.Program;
 import toyc.frontend.ir.IRBuilder;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.*;
 
 public class ToyCWorldBuilder extends AbstractWorldBuilder {
@@ -30,7 +30,6 @@ public class ToyCWorldBuilder extends AbstractWorldBuilder {
     
     private IRBuilder irBuilder;
     private Map<String, Function> functions;
-    private Function mainFunction;
 
     @Override
     public void build(Options options, List<AnalysisConfig> analyses) {
@@ -49,26 +48,11 @@ public class ToyCWorldBuilder extends AbstractWorldBuilder {
         this.functions = new HashMap<>();
         
         // Process input files
-        List<String> inputFiles = getInputFiles(options);
-        if (inputFiles.isEmpty()) {
-            throw new RuntimeException("No input files specified");
-        }
-        
-        // For now, process the first input file
-        String inputFile = inputFiles.getFirst();
-        
+        String inputFile = getInputFile(options);
+
         try {
             // Parse and analyze the input file
             parseAndAnalyze(inputFile);
-            
-            // Program will be built after IR generation
-            
-            // Set main function
-            if (mainFunction != null) {
-                world.setMainFunction(mainFunction);
-            } else {
-                logger.warn("No main function found in program");
-            }
             
             // Set IR builder
             world.setIRBuilder(irBuilder);
@@ -131,7 +115,7 @@ public class ToyCWorldBuilder extends AbstractWorldBuilder {
             
             // Set the IR on the function (using reflection to access private field)
             try {
-                java.lang.reflect.Field irField = Function.class.getDeclaredField("ir");
+                Field irField = Function.class.getDeclaredField("ir");
                 irField.setAccessible(true);
                 irField.set(function, ir);
             } catch (Exception e) {
@@ -141,61 +125,14 @@ public class ToyCWorldBuilder extends AbstractWorldBuilder {
             functions.put(funcName, function);
         }
         
-        // Set main function from the functions extracted from IR builder
-        mainFunction = functions.get("main");
-        if (mainFunction != null) {
-            logger.info("Found main function: {}", mainFunction);
-        }
-        
         // Build program representation and ensure all functions have IR built
         Program program = new Program(new ArrayList<>(functions.values()));
         irBuilder.buildAll(program);
         
         // Set program in world
         World.get().setProgram(program);
-        
-        // Optimize IR if optimization is enabled
-        irBuilder.optimizeAllFunctions();
-        
-        // Print IR for all functions
-        printIR();
+        World.get().setMainFunction(functions.get("main"));
         
         logger.info("IR generation completed");
-    }
-
-    /**
-     * Prints IR for all functions to the console.
-     */
-    private void printIR() {
-        System.out.println("\n" + "=".repeat(60));
-        System.out.println("IR DUMP");
-        System.out.println("=".repeat(60));
-        
-        for (Map.Entry<String, IR> entry : irBuilder.getFunctions().entrySet()) {
-            IR ir = entry.getValue();
-            
-            System.out.println();
-            IRPrinter.print(ir, System.out);
-        }
-        
-        System.out.println("\n" + "=".repeat(60));
-    }
-
-    // Function extraction is now handled by ToyCIRBuilder during IR generation
-
-    /**
-     * Gets the extracted functions from the world building process.
-     * @return Map of function name to Function object
-     */
-    public Map<String, Function> getFunctions() {
-        return functions;
-    }
-    
-    /**
-     * Gets the main function if it exists.
-     * @return The main function or null if not found
-     */
-    public Function getMainFunction() {
-        return mainFunction;
     }
 }

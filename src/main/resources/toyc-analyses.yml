@@ -54,12 +54,20 @@
 - description: inter-procedural constant propagation
   analysisClass: toyc.analysis.dataflow.inter.InterConstantPropagation
   id: inter-const-prop
-  requires: [ icfg, pta(alias-aware=true) ]
+  requires: [ icfg ]
   options:
     edge-refine: true # refine lattice value via edge transfer
-    alias-aware: false # leverage alias information to improve precision
 
 - description: dead code detection
   analysisClass: toyc.analysis.deadcode.DeadCodeDetection
   id: dead-code
   requires: [ cfg,const-prop,live-var ]
+
+- description: process results of previously-run analyses
+  analysisClass: toyc.analysis.ResultProcessor
+  id: process-result
+  options:
+    analyses: [ const-prop ]
+    action: dump # | compare
+    file: null
+    log-mismatches: false

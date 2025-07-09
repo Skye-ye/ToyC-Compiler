@@ -1,15 +1,14 @@
 package toyc;
 
-import java.io.IOException;
-
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import toyc.analysis.AnalysisManager;
 import toyc.config.*;
 import toyc.frontend.cache.CachedWorldBuilder;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import toyc.util.Timer;
 import toyc.util.collection.Lists;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -22,16 +21,14 @@ public class Compiler {
         Timer.runAndCount(() -> {
             Options options = processArgs(args);
             // Only proceed with analysis if not showing help
-            if (!options.isPrintHelp()) {
-                LoggerConfigs.setOutput(options.getOutputDir());
-                Plan plan = processConfigs(options);
-                if (plan.analyses().isEmpty()) {
-                    logger.info("No analyses are specified");
-                    System.exit(0);
-                }
-                buildWorld(options, plan.analyses());
-                executePlan(plan);
+            LoggerConfigs.setOutput(options.getOutputDir());
+            Plan plan = processConfigs(options);
+            if (plan.analyses().isEmpty()) {
+                logger.info("No analyses are specified");
+                System.exit(0);
             }
+            buildWorld(options, plan.analyses());
+            executePlan(plan);
         }, "ToyC Compiler");
         LoggerConfigs.reconfigure();
     }
