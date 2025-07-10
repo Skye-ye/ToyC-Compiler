@@ -942,19 +942,4 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         // Keep default -1 line number for generated statements
         stmts.add(stmt);
     }
-
-
-
-    /**
-     * Optimizes all function IRs (placeholder for future optimizations).
-     * Used by ToyCWorldBuilder.
-     */
-    public void optimizeAllFunctions() {
-        logger.info("Optimizing {} functions", functions.size());
-        // TODO: Implement IR optimizations
-        for (Map.Entry<String, IR> entry : functions.entrySet()) {
-            logger.debug("Optimizing function: {}", entry.getKey());
-            // Apply optimizations to entry.getValue()
-        }
-    }
 }

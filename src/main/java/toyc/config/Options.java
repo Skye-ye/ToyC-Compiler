@@ -47,7 +47,7 @@ public class Options implements Serializable {
 
     // ---------- file-based options ----------
     @JsonProperty
-    @Option(names = "--options-file",
+    @Option(names = {"-op", "--options-file"},
             description = "The options file")
     private File optionsFile;
 
@@ -71,18 +71,18 @@ public class Options implements Serializable {
 
     // ---------- program options ----------
     @JsonProperty
-    @Parameters(index = "0..*",
-            description = "One or more source files to compile.",
-            paramLabel = "SOURCE-FILE")
-    private List<String> inputFiles = List.of(); // Changed from List<File>
+    @Parameters(description = "The single source file to compile.",
+            paramLabel = "SOURCE-FILE",
+            arity = "0..1")
+    private String inputFile;
 
-    public List<String> getInputFiles() {
-        return inputFiles;
+    public String getInputFile() {
+        return inputFile;
     }
 
     // ---------- general analysis options ----------
     @JsonProperty
-    @Option(names = "--world-builder",
+    @Option(names = {"-wb", "--world-builder"},
             description = "Specify world builder class (default: ${DEFAULT-VALUE})",
             defaultValue = "toyc.frontend.ToyCWorldBuilder")
     private Class<? extends WorldBuilder> worldBuilderClass;
@@ -94,7 +94,7 @@ public class Options implements Serializable {
     @JsonProperty
     @JsonSerialize(using = OutputDirSerializer.class)
     @JsonDeserialize(using = OutputDirDeserializer.class)
-    @Option(names = "--output-dir",
+    @Option(names = {"-o", "--output-dir"},
             description = "Specify output directory (default: ${DEFAULT-VALUE})"
                     + ", '" + PlaceholderAwareFile.AUTO_GEN + "' can be used as a placeholder"
                     + " for an automatically generated timestamp",
@@ -212,7 +212,7 @@ public class Options implements Serializable {
             throw new ConfigException("Conflict options: " +
                     "--analysis and --plan-file should not be used simultaneously");
         }
-        if (options.getInputFiles() == null || options.getInputFiles().isEmpty()) {
+        if (options.getInputFile() == null) {
             throw new ConfigException("Missing source file");
         }
         // mkdir for output dir
@@ -380,7 +380,7 @@ public class Options implements Serializable {
         return "Options{" +
                 "optionsFile=" + optionsFile +
                 ", printHelp=" + printHelp +
-                ", inputFiles=" + inputFiles +
+                ", inputFile=" + inputFile +
                 ", worldBuilderClass=" + worldBuilderClass +
                 ", outputDir='" + outputDir + '\'' +
                 ", preBuildIR=" + preBuildIR +

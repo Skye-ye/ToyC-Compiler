@@ -9,8 +9,6 @@ import toyc.util.AbstractResultHolder;
 
 import java.io.*;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Manages the whole-program information of the program being analyzed.
