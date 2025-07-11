@@ -5,6 +5,9 @@ import org.apache.logging.log4j.Logger;
 import toyc.analysis.AnalysisManager;
 import toyc.config.*;
 import toyc.frontend.cache.CachedWorldBuilder;
+import toyc.ir.IR;
+import toyc.ir.IRPrinter;
+import toyc.language.Function;
 import toyc.util.Timer;
 import toyc.util.collection.Lists;
 
@@ -24,7 +27,9 @@ public class Compiler {
             LoggerConfigs.setOutput(options.getOutputDir());
             Plan plan = processConfigs(options);
             if (plan.analyses().isEmpty()) {
-                logger.info("No analyses are specified");
+                logger.info("No analyses are specified, printing IR");
+                buildWorld(options, plan.analyses());
+                printIR();
                 System.exit(0);
             }
             buildWorld(options, plan.analyses());
@@ -106,5 +111,15 @@ public class Compiler {
 
     private static void executePlan(Plan plan) {
         new AnalysisManager(plan).execute();
+    }
+
+    private static void printIR() {
+        System.out.println("\n========== IR Output ==========");
+        for (Function function : World.get().getProgram().allFunctions().toList()) {
+            IR ir = function.getIR();
+            IRPrinter.print(ir, System.out);
+            System.out.println();
+        }
+        System.out.println("========== End IR Output ==========");
     }
 }

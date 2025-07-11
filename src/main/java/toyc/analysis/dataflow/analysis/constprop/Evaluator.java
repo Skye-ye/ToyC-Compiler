@@ -71,8 +71,6 @@ public final class Evaluator {
                 case GT -> i1 > i2 ? 1 : 0;
                 case LE -> i1 <= i2 ? 1 : 0;
                 case GE -> i1 >= i2 ? 1 : 0;
-                case AND -> (i1 != 0 && i2 != 0) ? 1 : 0;
-                case OR -> (i1 != 0 || i2 != 0) ? 1 : 0;
             };
         }
         throw new AnalysisException("Unexpected op: " + op);
