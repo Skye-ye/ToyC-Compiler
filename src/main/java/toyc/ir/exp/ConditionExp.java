@@ -15,8 +15,6 @@ public class ConditionExp extends AbstractBinaryExp {
         GT(">"),
         LE("<="),
         GE(">="),
-        AND("&&"),
-        OR("||"),
         ;
 
         private final String symbol;
