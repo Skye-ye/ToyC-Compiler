@@ -71,3 +71,10 @@
     action: dump # | compare
     file: null
     log-mismatches: false
+
+- description: common subexpression elimination
+  analysisClass: toyc.analysis.cse.CommonSubexpressionElimination
+  id: cse
+  requires: [ cfg,const-prop ]
+  options:
+    dump: true # whether dump CSE results
