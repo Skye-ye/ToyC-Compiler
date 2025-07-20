@@ -55,4 +55,38 @@ public class ArithmeticExp extends AbstractBinaryExp {
     public <T> T accept(ExpVisitor<T> visitor) {
         return visitor.visit(this);
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof ArithmeticExp)) {
+            return false;
+        }
+        ArithmeticExp other = (ArithmeticExp) obj;
+
+        // operator
+        if (this.op != other.op) {
+            return false;
+        }
+
+        // 对于加法和乘法，满足交换律
+        if (this.op == Op.ADD || this.op == Op.MUL) {
+            return (operand1.equals(other.operand1) && operand2.equals(other.operand2)) ||
+                (operand1.equals(other.operand2) && operand2.equals(other.operand1));
+        }
+        
+        return operand1.equals(other.operand1) && operand2.equals(other.operand2);
+    }
+
+    @Override
+    public int hashCode() {
+        if (this.op == Op.ADD || this.op == Op.MUL) {
+            return op.hashCode() + operand1.hashCode() + operand2.hashCode();
+        } else {
+            // 对于减法、除法、取余，不满足交换律，考虑操作数顺序
+            return op.hashCode() * 31 * 31 + operand1.hashCode() * 31 + operand2.hashCode();
+        }
+    }
 }
