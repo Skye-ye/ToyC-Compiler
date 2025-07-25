@@ -65,13 +65,6 @@ public class CSEFact extends MapFact<Exp, Integer> {
                     changed = true;  // Remove the expression if it contains the lvalue
                 }
             }
-            else if (exp instanceof ConditionExp) {
-                ConditionExp conditionExp = (ConditionExp) exp;
-                if (conditionExp.getOperand1().equals(lvalue) || conditionExp.getOperand2().equals(lvalue)) {
-                    iterator.remove();  // Remove the expression if it contains the lvalue
-                    changed = true;
-                }
-            }
         }
         return changed;
     }

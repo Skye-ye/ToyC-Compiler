@@ -1,5 +1,5 @@
 package toyc.ir.exp;
-
+import toyc.util.Hashes;
 import toyc.language.type.IntType;
 
 /**
@@ -61,10 +61,9 @@ public class ArithmeticExp extends AbstractBinaryExp {
         if (this == obj) {
             return true;
         }
-        if (!(obj instanceof ArithmeticExp)) {
+        if (!(obj instanceof ArithmeticExp other)) {
             return false;
         }
-        ArithmeticExp other = (ArithmeticExp) obj;
 
         // operator
         if (this.op != other.op) {
@@ -82,11 +81,12 @@ public class ArithmeticExp extends AbstractBinaryExp {
 
     @Override
     public int hashCode() {
+        // 对于加法和乘法，满足交换律，使用对称的hash计算
         if (this.op == Op.ADD || this.op == Op.MUL) {
             return op.hashCode() + operand1.hashCode() + operand2.hashCode();
         } else {
             // 对于减法、除法、取余，不满足交换律，考虑操作数顺序
-            return op.hashCode() * 31 * 31 + operand1.hashCode() * 31 + operand2.hashCode();
+            return Hashes.hash(op, operand1, operand2);
         }
     }
 }

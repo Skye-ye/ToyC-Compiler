@@ -20,7 +20,7 @@ import java.util.Set;
  */
 public class CommonSubexpressionElimination extends AnalysisDriver<Stmt, CSEFact> {
 
-    public static final String ID = "cse";
+    public static final String ID = "common-subexp-eliminate";
 
     public CommonSubexpressionElimination(AnalysisConfig config) {
         super(config);
