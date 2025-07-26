@@ -44,20 +44,7 @@ public class CommonSubexpressionElimination extends AnalysisDriver<Stmt, CSEFact
 
         @Override
         public CSEFact newBoundaryFact() {
-            return newBoundaryFact(cfg.getIR());
-        }
-
-        public CSEFact newBoundaryFact(IR ir) {
-            CSEFact entryFact = newInitialFact();
-            Stmt statement = ir.getStmt(0);
-            Set<Exp> subexpression = RExpExtractor.extract(statement);
-            if (subexpression == null || subexpression.isEmpty()) {
-                return entryFact; // No subexpressions to initialize
-            }
-            for (Exp exp : subexpression) {
-                entryFact.update(exp, 0);
-            }
-            return entryFact;
+            return newInitialFact();
         }
 
         @Override
@@ -78,6 +65,7 @@ public class CommonSubexpressionElimination extends AnalysisDriver<Stmt, CSEFact
                     intersection.update(exp, id);
                 }
             });
+            target.copyFrom(intersection);
         }
 
         @Override
@@ -100,9 +88,6 @@ public class CommonSubexpressionElimination extends AnalysisDriver<Stmt, CSEFact
             // Kill
             Var lvalue = LExpExtractor.extract(stmt);
             if (lvalue != null) {
-                return changed;
-            }
-            else {
                 changed |= out.eliminate(lvalue);
             }
             return changed;
