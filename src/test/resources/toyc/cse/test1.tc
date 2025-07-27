@@ -10,5 +10,8 @@ int main(){
     }
     a = b + 2;
     int x = a + b;
+    if (0 < c) {
+        d = c + 1;
+    }
     return 0;
 }
