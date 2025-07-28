@@ -1,6 +1,6 @@
 optionsFile: null
 printHelp: false
-inputFile: src/test/resources/toyc/oj/03_if_else.tc
+inputFile: src/test/resources/toyc/cse/test1.tc
 worldBuilderClass: toyc.frontend.ToyCWorldBuilder
 outputDir: output
 preBuildIR: false
@@ -9,6 +9,7 @@ scope: REACHABLE
 planFile: null
 onlyGenPlan: false
 analyses:
+  common-subexp-eliminate: ""
   const-prop: ""
   process-result: ""
 keepResult:

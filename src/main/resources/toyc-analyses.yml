@@ -67,7 +67,14 @@
   analysisClass: toyc.analysis.ResultProcessor
   id: process-result
   options:
-    analyses: [ const-prop ]
+    analyses: [ const-prop, common-subexp-eliminate]
     action: dump # | compare
     file: null
     log-mismatches: false
+
+- description: common subexpression elimination
+  analysisClass: toyc.analysis.dataflow.analysis.cse.CommonSubexpressionElimination
+  id: common-subexp-eliminate
+  requires: [ cfg,const-prop ]
+  options:
+    dump: true # whether dump CSE results
