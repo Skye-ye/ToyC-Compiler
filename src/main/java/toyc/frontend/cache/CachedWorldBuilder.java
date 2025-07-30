@@ -4,7 +4,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import toyc.World;
 import toyc.WorldBuilder;
-import toyc.config.AnalysisConfig;
+import toyc.config.AlgorithmConfig;
 import toyc.config.Options;
 import toyc.util.Timer;
 
@@ -54,7 +54,7 @@ public class CachedWorldBuilder implements WorldBuilder {
     }
 
     @Override
-    public void build(Options options, List<AnalysisConfig> analyses) {
+    public void build(Options options, List<AlgorithmConfig> analyses) {
         if (!options.isWorldCacheMode()) {
             logger.error("Using CachedWorldBuilder,"
                     + " but world cache mode option is not enabled");
@@ -92,7 +92,7 @@ public class CachedWorldBuilder implements WorldBuilder {
         return false;
     }
 
-    private void runWorldBuilder(Options options, List<AnalysisConfig> analyses) {
+    private void runWorldBuilder(Options options, List<AlgorithmConfig> analyses) {
         logger.info("Running the WorldBuilder ...");
         Timer timer = new Timer("Run the WorldBuilder");
         timer.start();

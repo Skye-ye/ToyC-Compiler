@@ -1,7 +1,10 @@
 package toyc.config;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 /**
@@ -13,27 +16,29 @@ public final class Configs {
     }
 
     /**
-     * File name of analysis configuration.
+     * File name of algorithm configuration. (including analyses and
+     * optimizations)
      * TODO: the path of configuration file is hardcoded, make it configurable?
      */
-    private static final String CONFIG = "toyc-analyses.yml";
+    private static final String ANALYSES_CONFIG = "toyc-analyses.yml";
+    private static final String OPTIMIZATIONS_CONFIG = "toyc-optimizations.yml";
 
     /**
-     * @return the content of analysis configuration.
+     * @return the combined content of both algorithm configurations.
+     * This merges analyses and optimizations configs into a single stream.
      */
-    public static InputStream getAnalysisConfig() {
-        return Configs.class
-                .getClassLoader()
-                .getResourceAsStream(CONFIG);
-    }
+    public static InputStream getAlgorithmConfig() {
+        try {
+            String analysesContent = readConfigAsString(ANALYSES_CONFIG);
+            String optimizationsContent = readConfigAsString(OPTIMIZATIONS_CONFIG);
 
-    /**
-     * @return the URL of analysis configuration.
-     */
-    public static URL getAnalysisConfigURL() {
-        return Configs.class
-                .getClassLoader()
-                .getResource(CONFIG);
+            // Combine the YAML content (assuming both are valid YAML documents)
+            String combined = analysesContent + "\n\n" + optimizationsContent;
+
+            return new ByteArrayInputStream(combined.getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to combine configuration files", e);
+        }
     }
 
     /**
@@ -62,7 +67,7 @@ public final class Configs {
      * a=b|c|d&amp;x=y
      * TODO: comprehensive error handling for invalid conditions
      */
-    static boolean satisfyConditions(String conditions, AnalysisOptions options) {
+    static boolean satisfyConditions(String conditions, AlgorithmOptions options) {
         if (conditions != null) {
             outer:
             for (String conds : conditions.split("&")) {
@@ -84,5 +89,17 @@ public final class Configs {
             }
         }
         return true;
+    }
+
+    /**
+     * Helper method to read config file as string
+     */
+    private static String readConfigAsString(String configFile) throws IOException {
+        try (InputStream is = Configs.class.getClassLoader().getResourceAsStream(configFile)) {
+            if (is == null) {
+                throw new IOException("Configuration file not found: " + configFile);
+            }
+            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 }
