@@ -1,5 +1,5 @@
 - description: call graph construction
-  analysisClass: toyc.analysis.graph.callgraph.CallGraphBuilder
+  algorithmClass: toyc.analysis.graph.callgraph.CallGraphBuilder
   id: cg
   options:
     dump: true # whether dump call graph in dot file
@@ -7,44 +7,44 @@
     dump-call-edges: true # whether dump call edges
 
 - description: intraprocedural control-flow graph
-  analysisClass: toyc.analysis.graph.cfg.CFGBuilder
+  algorithmClass: toyc.analysis.graph.cfg.CFGBuilder
   id: cfg
   options:
     dump: true # dump control-flow graph
 
 - description: interprocedural control-flow graph
-  analysisClass: toyc.analysis.graph.icfg.ICFGBuilder
+  algorithmClass: toyc.analysis.graph.icfg.ICFGBuilder
   id: icfg
   requires: [ cfg,cg ]
   options:
     dump: true # dump inter-procedural control-flow graph
 
 - description: live variable analysis
-  analysisClass: toyc.analysis.dataflow.analysis.LiveVariable
+  algorithmClass: toyc.analysis.dataflow.analysis.LiveVariable
   id: live-var
   requires: [ cfg ]
   options:
     strongly: true # enable strongly live variable analysis
 
 - description: available expression analysis
-  analysisClass: toyc.analysis.dataflow.analysis.availexp.AvailableExpression
+  algorithmClass: toyc.analysis.dataflow.analysis.availexp.AvailableExpression
   id: avail-exp
   requires: [ cfg ]
 
 - description: reaching definition analysis
-  analysisClass: toyc.analysis.dataflow.analysis.ReachingDefinition
+  algorithmClass: toyc.analysis.dataflow.analysis.ReachingDefinition
   id: reach-def
   requires: [ cfg ]
 
 - description: constant propagation
-  analysisClass: toyc.analysis.dataflow.analysis.constprop.ConstantPropagation
+  algorithmClass: toyc.analysis.dataflow.analysis.constprop.ConstantPropagation
   id: const-prop
   requires: [ cfg ]
   options:
     edge-refine: true # refine lattice value via edge transfer
 
 - description: def-use analysis
-  analysisClass: toyc.analysis.defuse.DefUseAnalysis
+  algorithmClass: toyc.analysis.defuse.DefUseAnalysis
   id: def-use
   requires: [ reach-def ]
   options:
@@ -52,29 +52,29 @@
     compute-uses: false # whether compute uses of variables
 
 - description: inter-procedural constant propagation
-  analysisClass: toyc.analysis.dataflow.inter.InterConstantPropagation
+  algorithmClass: toyc.analysis.dataflow.inter.InterConstantPropagation
   id: inter-const-prop
   requires: [ icfg ]
   options:
     edge-refine: true # refine lattice value via edge transfer
 
 - description: dead code detection
-  analysisClass: toyc.analysis.deadcode.DeadCodeDetection
+  algorithmClass: toyc.analysis.deadcode.DeadCodeDetection
   id: dead-code
   requires: [ cfg,const-prop,live-var ]
 
-- description: process results of previously-run analyses
-  analysisClass: toyc.analysis.ResultProcessor
-  id: process-result
-  options:
-    analyses: [ const-prop, common-subexp-eliminate]
-    action: dump # | compare
-    file: null
-    log-mismatches: false
-
-- description: common subexpression elimination
-  analysisClass: toyc.analysis.dataflow.analysis.cse.CommonSubexpressionElimination
-  id: common-subexp-eliminate
+- description: common subexpression detection
+  algorithmClass: toyc.algorithm.analysis.dataflow.analysis.csd.CommonSubexpressionDetection
+  id: csd
   requires: [ cfg,const-prop ]
   options:
     dump: true # whether dump CSE results
+
+- description: process results of previously-run analyses
+  algorithmClass: toyc.analysis.ResultProcessor
+  id: process-result
+  options:
+    analyses: [ const-prop,dead-code ]
+    action: dump # | compare
+    file: null
+    log-mismatches: false

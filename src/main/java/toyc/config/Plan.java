@@ -15,8 +15,8 @@ import java.util.Set;
  * @param keepResult      set of IDs for the analyses whose results are kept.
  */
 public record Plan(
-        List<AnalysisConfig> analyses,
-        Graph<AnalysisConfig> dependenceGraph,
+        List<AlgorithmConfig> analyses,
+        Graph<AlgorithmConfig> dependenceGraph,
         Set<String> keepResult) {
 
     /**

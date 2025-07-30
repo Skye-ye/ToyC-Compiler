@@ -10,7 +10,7 @@ import toyc.AbstractWorldBuilder;
 import toyc.ToyCLexer;
 import toyc.ToyCParser;
 import toyc.World;
-import toyc.config.AnalysisConfig;
+import toyc.config.AlgorithmConfig;
 import toyc.config.Options;
 import toyc.frontend.semantic.SemanticChecker;
 import toyc.frontend.util.LexerErrorListener;
@@ -32,7 +32,7 @@ public class ToyCWorldBuilder extends AbstractWorldBuilder {
     private Map<String, Function> functions;
 
     @Override
-    public void build(Options options, List<AnalysisConfig> analyses) {
+    public void build(Options options, List<AlgorithmConfig> analyses) {
         logger.info("Building ToyC world...");
         
         // Reset World
