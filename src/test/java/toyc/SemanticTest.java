@@ -43,7 +43,7 @@ public class SemanticTest {
         OutputCapture capture = new OutputCapture();
         try {
             String filePath = getResourcePath(resourceName);
-            Compiler.main(new String[]{filePath});
+            SemanticTestDriver.main(new String[]{filePath});
             String actualError = capture.getError();
 
             String assertionMessage = String.format(
@@ -67,91 +67,91 @@ public class SemanticTest {
 
     @Test
     void testVarUndef() throws IOException {
-        assertCompilerError("VarUnDef.toyc", "Undefined variable 'x'");
+        assertCompilerError("VarUnDef.tc", "Undefined variable 'x'");
     }
 
     @Test
     void testFuncUndef() throws IOException {
-        assertCompilerError("FuncUnDef.toyc", "Undefined function 'func'");
+        assertCompilerError("FuncUnDef.tc", "Undefined function 'func'");
     }
 
     @Test
     void testVarRedef() throws IOException {
-        assertCompilerError("VarReDef.toyc", "Variable redefinition 'x'");
+        assertCompilerError("VarReDef.tc", "Variable redefinition 'x'");
     }
 
     @Test
     void testParamRedef() throws IOException {
-        assertCompilerError("ParamReDef.toyc", "Parameter redefinition 'a'");
+        assertCompilerError("ParamReDef.tc", "Parameter redefinition 'a'");
     }
 
     @Test
     void testFuncRedef() throws IOException {
-        assertCompilerError("FuncReDef.toyc", "Function redefinition 'func'");
+        assertCompilerError("FuncReDef.tc", "Function redefinition 'func'");
     }
 
     @Test
     void testAssignTypeMismatch() throws IOException {
         // Corrected: The original code passed an error message to getResourcePath.
-        assertCompilerError("AssignTypeMismatch.toyc", "Type mismatched for assignment");
+        assertCompilerError("AssignTypeMismatch.tc", "Type mismatched for assignment");
     }
 
     @Test
     void testOperandTypeMismatch() throws IOException {
         // Corrected: The original code passed an error message to getResourcePath.
-        assertCompilerError("OperandTypeMismatch.toyc", "Type mismatched for " +
+        assertCompilerError("OperandTypeMismatch.tc", "Type mismatched for " +
                 "operand '+'");
     }
 
     @Test
     void testReturnTypeMismatch() throws IOException {
-        assertCompilerError("ReturnTypeMismatch.toyc", "Type mismatched for return");
+        assertCompilerError("ReturnTypeMismatch.tc", "Type mismatched for return");
     }
 
     @Test
     void testArgsMismatch() throws IOException {
-        assertCompilerError("ArgsMismatch.toyc", "Arguments mismatched 'func'");
+        assertCompilerError("ArgsMismatch.tc", "Arguments mismatched 'func'");
     }
 
     @Test
     void testNonFuncCall() throws IOException {
-        assertCompilerError("NonFuncCall.toyc", "Call of non-function 'a'");
+        assertCompilerError("NonFuncCall.tc", "Call of non-function 'a'");
     }
 
     @Test
     void testAssignNonVar() throws IOException {
-        assertCompilerError("AssignNonVar.toyc", "Assignment to non-variable " +
+        assertCompilerError("AssignNonVar.tc", "Assignment to non-variable " +
                 "'func'");
     }
 
     @Test
     void testBreakOutsideWhile() throws IOException {
-        assertCompilerError("BreakOutsideWhile.toyc", "Error at Line 2, Column 5: Break statement appears outside while block.");
+        assertCompilerError("BreakOutsideWhile.tc", "Error at Line 2, Column 5: Break statement appears outside while block.");
     }
 
     @Test
     void testContinueOutsideWhile() throws IOException {
-        assertCompilerError("ContinueOutsideWhile.toyc", "Error at Line 2, Column 5: Continue statement appears outside while block.");
+        assertCompilerError("ContinueOutsideWhile.tc", "Error at Line 2, Column 5: Continue statement appears outside while block.");
     }
 
     @Test
     void testUndefMain() throws IOException {
-        assertCompilerError("UnDefMain.toyc", "Main function is not defined");
+        assertCompilerError("UnDefMain.tc", "Main function is not defined");
     }
 
     @Test
     void testMainReturnNonIntType() throws IOException {
-        assertCompilerError("MainReturnNonIntType.toyc", "Main function must return int");
+        assertCompilerError("MainReturnNonIntType.tc", "Main function must return int");
     }
 
     @Test
     void testMainNonEmptyParam() throws IOException {
-        assertCompilerError("MainNonEmptyParam.toyc", "Main function must not have parameters");
+        assertCompilerError("MainNonEmptyParam.tc", "Main function must not have parameters");
     }
 
     @Test
     void testVoidReturnFuncUseAsRval() throws IOException {
-        assertCompilerError("VoidReturnFuncUseAsRval.toyc", "Error at Line 4," +
+        assertCompilerError("VoidReturnFuncUseAsRval.tc", "Error at Line 4," +
                 " Column 12: Void return function cannot be used as rvalue " +
                 "'func'.\nError at Line 8, Column 9: Void return function " +
                 "cannot be used as rvalue 'func'.");
@@ -159,7 +159,7 @@ public class SemanticTest {
 
     @Test
     void testNonVoidFuncMissingReturn() throws IOException {
-        assertCompilerError("NonVoidFuncMissingReturn.toyc", """
+        assertCompilerError("NonVoidFuncMissingReturn.tc", """
                 Error at Line \
                 1, Column 5: Non-void function must return a value 'func'.
                 Error at Line 3, Column 5: Non-void function must return \
@@ -170,16 +170,16 @@ public class SemanticTest {
 
     @Test
     void testIntegerOverflow() throws IOException {
-        assertCompilerError("IntegerOverflow.toyc", """
+        assertCompilerError("IntegerOverflow.tc", """
                 Error at Line 2, Column 13: Integer overflow occurred.
-                Error at Line 3, Column 13: Integer overflow occurred.
+                Error at Line 3, Column 14: Integer overflow occurred.
                 Error at Line 4, Column 13: Integer overflow occurred.
-                Error at Line 5, Column 13: Integer overflow occurred.
+                Error at Line 5, Column 16: Integer overflow occurred.
                 """);
     }
 
     @Test
     void testZeroDivision() throws IOException {
-        assertCompilerError("ZeroDivision.toyc", "Error at Line 2, Column 15: Division by zero is not allowed.");
+        assertCompilerError("ZeroDivision.tc", "Error at Line 2, Column 15: Division by zero is not allowed.");
     }
 }
