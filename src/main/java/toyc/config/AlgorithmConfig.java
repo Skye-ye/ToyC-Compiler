@@ -51,6 +51,15 @@ public class AlgorithmConfig {
     private final String id;
 
     /**
+     * Indicates whether this algorithm modifies IR
+     * <p>
+     * This is used to determine whether the algorithm modifies the IR.
+     * If it does, the Plan Builder will rerun required algorithms
+     */
+    @JsonProperty
+    private final Boolean modification;
+
+    /**
      * Require items of the analysis.
      * <p>
      * Each require item contains two part:
@@ -85,11 +94,13 @@ public class AlgorithmConfig {
             @JsonProperty("description") String description,
             @JsonProperty("algorithmClass") String algorithmClass,
             @JsonProperty("id") String id,
+            @JsonProperty("modification") Boolean modification,
             @JsonProperty("requires") List<String> requires,
             @JsonProperty("options") AlgorithmOptions options) {
         this.description = description;
         this.algorithmClass = algorithmClass;
         this.id = id;
+        this.modification = modification;
         this.requires = Objects.requireNonNullElse(requires, List.of());
         this.options = Objects.requireNonNullElse(options,
                 AlgorithmOptions.emptyOptions());
@@ -101,7 +112,8 @@ public class AlgorithmConfig {
      * of key-value pairs, e.g., [k1, v1, k2, v2, ...].
      */
     public static AlgorithmConfig of(String id, Object... options) {
-        return new AlgorithmConfig(null, null, id, null, convertOptions(options));
+        return new AlgorithmConfig(null, null, id, null, null,
+                convertOptions(options));
     }
 
     /**
@@ -128,6 +140,10 @@ public class AlgorithmConfig {
         return id;
     }
 
+    public Boolean getModification() {
+        return modification;
+    }
+
     /**
      * Note that this API only returns unprocessed raw require information.
      * To obtain the real required analyses, you should call
@@ -148,6 +164,7 @@ public class AlgorithmConfig {
                 "description='" + description + '\'' +
                 ", algorithmClass='" + algorithmClass + '\'' +
                 ", id='" + id + '\'' +
+                ", modification='" + modification + '\'' +
                 ", requires=" + requires +
                 ", options=" + options +
                 '}';

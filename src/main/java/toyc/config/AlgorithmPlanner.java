@@ -44,6 +44,10 @@ public class AlgorithmPlanner {
         validateAnalyses(analyses, reachableScope);
         Graph<AlgorithmConfig> graph = buildDependenceGraph(analyses);
         validateDependenceGraph(graph);
+        
+        // Expand plan to handle IR modifications
+        analyses = expandPlanWithIRModification(analyses, reachableScope);
+        
         return new Plan(analyses, graph, keepResult);
     }
 
@@ -140,6 +144,10 @@ public class AlgorithmPlanner {
         if (reachableScope) {
             analyses = shiftCG(analyses);
         }
+        
+        // Expand plan to handle IR modifications
+        analyses = expandPlanWithIRModification(analyses, reachableScope);
+        
         return new Plan(analyses, graph, keepResult);
     }
 
@@ -233,5 +241,120 @@ public class AlgorithmPlanner {
             throw new ConfigException("Invalid analysis plan: " +
                     scc.getTrueComponents() + " are mutually dependent");
         }
+    }
+
+    /**
+     * Expands the given analysis plan to handle IR modifications.
+     * When an algorithm modifies IR, all previously executed analyses become invalid
+     * since their results are stored in the IR. This method re-inserts required
+     * analyses after each IR-modifying algorithm.
+     *
+     * @param originalPlan the original analysis plan
+     * @param reachableScope whether the analysis scope is set to reachable
+     * @return expanded plan with re-inserted analyses after IR modifications
+     */
+    private List<AlgorithmConfig> expandPlanWithIRModification(List<AlgorithmConfig> originalPlan, boolean reachableScope) {
+        List<AlgorithmConfig> expandedPlan = new ArrayList<>();
+        List<AlgorithmConfig> executedNonModifying = new ArrayList<>();
+        
+        for (int i = 0; i < originalPlan.size(); i++) {
+            AlgorithmConfig config = originalPlan.get(i);
+            expandedPlan.add(config);
+            
+            if (isIRModifying(config)) {
+                // Find what analyses future algorithms need
+                Set<AlgorithmConfig> neededAnalyses = findNeededAnalysesAfterModification(
+                    executedNonModifying, originalPlan, i + 1, reachableScope);
+                
+                // Add needed analyses in dependency order    
+                List<AlgorithmConfig> orderedNeeded = orderByDependencies(neededAnalyses);
+                expandedPlan.addAll(orderedNeeded);
+                
+                // Update executed list - only keep the re-inserted analyses
+                executedNonModifying.clear();
+                executedNonModifying.addAll(orderedNeeded);
+            } else {
+                // Non-modifying algorithm - add to executed list
+                executedNonModifying.add(config);
+            }
+        }
+        
+        return expandedPlan;
+    }
+
+    /**
+     * Checks if the given algorithm modifies IR.
+     */
+    private boolean isIRModifying(AlgorithmConfig config) {
+        return config.getModification() != null && config.getModification();
+    }
+
+    /**
+     * Finds analyses that need to be re-run after IR modification.
+     * This method looks at future algorithms in the plan and determines which
+     * previously executed analyses they depend on.
+     *
+     * @param executedNonModifying analyses executed before the IR modification
+     * @param originalPlan the complete original plan
+     * @param startIndex index to start looking for future algorithms
+     * @param reachableScope whether the analysis scope is set to reachable
+     * @return set of analyses that need to be re-run
+     */
+    private Set<AlgorithmConfig> findNeededAnalysesAfterModification(
+            List<AlgorithmConfig> executedNonModifying,
+            List<AlgorithmConfig> originalPlan,
+            int startIndex,
+            boolean reachableScope) {
+        
+        Set<AlgorithmConfig> needed = newSet();
+        
+        // If using reachable scope, always need to rebuild call graph after IR modification
+        // because function calls might have changed, affecting reachability
+        if (reachableScope) {
+            AlgorithmConfig cgConfig = CollectionUtils.findFirst(executedNonModifying,
+                    AlgorithmPlanner::isCG);
+            if (cgConfig != null) {
+                needed.add(cgConfig);
+                // Also add its dependencies
+                needed.addAll(manager.getAllRequiredConfigs(cgConfig));
+            }
+        }
+        
+        // Look at all future algorithms in the plan
+        for (int i = startIndex; i < originalPlan.size(); i++) {
+            AlgorithmConfig futureConfig = originalPlan.get(i);
+            
+            // Find all dependencies of this future algorithm
+            Set<AlgorithmConfig> allRequired = manager.getAllRequiredConfigs(futureConfig);
+            
+            // Add any required analyses that were executed before the IR modification
+            for (AlgorithmConfig required : allRequired) {
+                if (executedNonModifying.contains(required)) {
+                    needed.add(required);
+                    // Also add its dependencies recursively
+                    needed.addAll(manager.getAllRequiredConfigs(required));
+                }
+            }
+        }
+        
+        // Filter to only include analyses from the executed list
+        needed.retainAll(executedNonModifying);
+        
+        return needed;
+    }
+
+    /**
+     * Orders the given analyses by their dependencies using topological sort.
+     */
+    private List<AlgorithmConfig> orderByDependencies(Set<AlgorithmConfig> analyses) {
+        if (analyses.isEmpty()) {
+            return List.of();
+        }
+        
+        // Build dependency graph for these analyses
+        Graph<AlgorithmConfig> subGraph = buildDependenceGraph(new ArrayList<>(analyses));
+        
+        // Return topologically sorted order
+        return new TopologicalSorter<>(subGraph).get();
     }
 }

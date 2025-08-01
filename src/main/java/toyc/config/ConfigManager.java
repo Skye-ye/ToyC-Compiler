@@ -13,12 +13,12 @@ import static toyc.util.collection.Maps.newMap;
 public class ConfigManager {
 
     /**
-     * Map from analysis id to corresponding AnalysisConfig.
+     * Map from analysis id to corresponding AlgorithmConfig.
      */
     private final Map<String, AlgorithmConfig> configs = Maps.newLinkedHashMap();
 
     /**
-     * Map from AnalysisConfig to its required AnalysisConfigs.
+     * Map from AlgorithmConfig to its required AlgorithmConfigs.
      */
     private final Map<AlgorithmConfig, List<AlgorithmConfig>> requires = newMap();
 
@@ -29,28 +29,28 @@ public class ConfigManager {
     private void addConfig(AlgorithmConfig config) {
         if (configs.containsKey(config.getId())) {
             throw new ConfigException("There are multiple analyses for the same id " +
-                    config.getId());
+                    config.getId() + " in " + Configs.getAlgorithmConfigURL());
         }
         configs.put(config.getId(), config);
     }
 
     /**
-     * Given an analysis id, returns the corresponding AnalysisConfig.
+     * Given an analysis id, returns the corresponding AlgorithmConfig.
      *
      * @throws ConfigException when the manager does not contain
-     *                         the AnalysisConfig for the given id.
+     *                         the AlgorithmConfig for the given id.
      */
     AlgorithmConfig getConfig(String id) {
         AlgorithmConfig config = configs.get(id);
         if (config == null) {
-            throw new ConfigException("Analysis \"" + id + "\" is not found");
+            throw new ConfigException("Analysis \"" + id + "\" is not found in " +
+                    Configs.getAlgorithmConfigURL());
         }
         return config;
     }
 
     /**
-     * Overwrites the AlgorithmConfig.options by corresponding PlanConfig
-     * .options.
+     * Overwrites the AlgorithmConfig.options by corresponding PlanConfig.options.
      */
     public void overwriteOptions(List<PlanConfig> planConfigs) {
         planConfigs.forEach(pc ->
@@ -59,7 +59,7 @@ public class ConfigManager {
     }
 
     /**
-     * Obtains the required analyses of given analysis (represented by AnalysisConfig).
+     * Obtains the required analyses of given analysis (represented by AlgorithmConfig).
      * This computation is based on the options given in PlanConfig,
      * thus this method should be called after invoking {@link #overwriteOptions}.
      * NOTE: we should obtain required configs by this method, instead of

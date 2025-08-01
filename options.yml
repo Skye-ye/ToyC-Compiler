@@ -1,6 +1,6 @@
 optionsFile: null
 printHelp: false
-inputFile: src/test/resources/toyc/ir/Assign.tc
+inputFile: src/test/resources/toyc/ir/IfElse.tc
 worldBuilderClass: toyc.frontend.ToyCWorldBuilder
 outputDir: output
 preBuildIR: false
@@ -10,5 +10,7 @@ planFile: null
 onlyGenPlan: false
 analyses:
   dead-code-elim: ""
+  csd: ""
+  inter-const-prop: ""
 keepResult:
   - $KEEP-ALL
