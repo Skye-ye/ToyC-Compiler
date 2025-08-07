@@ -1,7 +1,9 @@
-package toyc;
+package toyc.semantic;
 
 import java.io.IOException;
 
+import toyc.ToyCLexer;
+import toyc.ToyCParser;
 import toyc.frontend.semantic.SemanticChecker;
 import toyc.frontend.util.LexerErrorListener;
 import toyc.frontend.util.ParserErrorListener;
