@@ -25,16 +25,14 @@ public class RISCV32Generator implements AssemblyGenerator {
     @Override
     public String generateFunctionAssembly(Function function) {
         IR ir = function.getIR();
-        AsmBuilder builder = new AsmBuilder();
+        RISCV32AsmBuilder builder = new RISCV32AsmBuilder();
 
         // Create a simple register allocator - for now, use a basic set of intervals
         // TODO: Calculate proper live intervals using dataflow analysis
         Set<LiveInterval> intervals = calculateSimpleLiveIntervals(ir);
         RegisterAllocator allocator = new LinearScanAllocator(intervals);
 
-        // Generate function prologue
-        int stackSize = allocator.getStackSize();
-        builder.addGlobalFunc(function.getName(), stackSize);
+        builder.addGlobalFunc(function.getName());
 
         // Generate code for each statement using visitor pattern
         StmtCodeGenerator codeGen = new StmtCodeGenerator(builder, allocator);
@@ -64,7 +62,7 @@ public class RISCV32Generator implements AssemblyGenerator {
     /**
      * Statement visitor for generating RISC-V assembly code
      */
-    private record StmtCodeGenerator(AsmBuilder builder, RegisterAllocator allocator) implements StmtVisitor<Void> {
+    private record StmtCodeGenerator(RISCV32AsmBuilder builder, RegisterAllocator allocator) implements StmtVisitor<Void> {
 
         @Override
         public Void visit(AssignLiteral stmt) {
@@ -171,7 +169,7 @@ public class RISCV32Generator implements AssemblyGenerator {
                     builder.mv("a0", srcReg);
                 }
             }
-            builder.ret(allocator.getStackSize());
+            builder.ret();
             return null;
         }
 

@@ -1,10 +1,10 @@
 package toyc.codegen;
 
-public class AsmBuilder {
+public class RISCV32AsmBuilder {
     private final StringBuffer textDeclareBuffer;
     private final StringBuffer textDefineBuffer;
 
-    public AsmBuilder() {
+    public RISCV32AsmBuilder() {
         textDeclareBuffer = new StringBuffer();
         textDefineBuffer = new StringBuffer();
     }
@@ -31,52 +31,64 @@ public class AsmBuilder {
         textDefineBuffer.append(String.format("  %s %s, %s, %s\n", op, dest, src1, src2));
     }
 
-    // Load instructions (load dest, offset(base))
+    /**
+     * Load instructions (lw, lhw etc.)
+     * These instructions load a value from memory into a register.
+     * @param op the operation to perform (e.g., "lw", "lh")
+     * @param dest the destination register where the value will be loaded
+     * @param offset the offset from the base address
+     * @param base the base register that holds the address
+     */
     public void load(String op, String dest, int offset, String base) {
         textDefineBuffer.append(String.format("  %s %s, %d(%s)\n", op, dest, offset, base));
     }
 
-    // Store instructions (store src, offset(base))
+    /**
+     * Store instructions (sw, sh etc.)
+     * @param op the operation to perform (e.g., "sw", "sh")
+     * @param src the source register that holds the value to be stored
+     * @param offset the offset from the base address
+     * @param base the base register that holds the address
+     */
     public void store(String op, String src, int offset, String base) {
         textDefineBuffer.append(String.format("  %s %s, %d(%s)\n", op, src, offset, base));
     }
 
-    // Load immediate (li dest, value)
+    /**
+     * Load immediate value into a register (pseudo-instruction for addi
+     * dest, x0, value)
+     * @param dest the destination register where the immediate value will be loaded
+     * @param value the immediate value to be loaded
+     */
     public void li(String dest, int value) {
         textDefineBuffer.append(String.format("  li %s, %d\n", dest, value));
     }
 
-    // Move (mv dest, src)
+    /**
+     * Move value from one register to another (pseudo-instruction for add
+     * dest, src, x0)
+     * @param dest the destination register
+     * @param src the source register
+     */
     public void mv(String dest, String src) {
         textDefineBuffer.append(String.format("  mv %s, %s\n", dest, src));
     }
 
-    // Call (call funcName)
+    /**
+     * Call a function by its name
+     * @param funcName the name of the function to call
+     */
     public void call(String funcName) {
         textDefineBuffer.append(String.format("  call %s\n", funcName));
     }
 
-    public void ret(int epilogue) {
-        textDefineBuffer.append(String.format("  addi sp, sp, %d\n", epilogue));
+    public void ret() {
         textDefineBuffer.append("  ret\n");
     }
 
-    public void addPrologue(String funcName, int size) {
-        String label = funcName + ":\n";
-        int labelIndex = textDefineBuffer.indexOf(label);
-
-        if (labelIndex != -1) {
-            int insertPoint = labelIndex + label.length();
-            StringBuilder prologue = new StringBuilder();
-            prologue.append("  addi sp, sp, ").append(-size).append("\n");
-            textDefineBuffer.insert(insertPoint, prologue);
-        }
-    }
-
-    public void addGlobalFunc(String name, int size) {
+    public void addGlobalFunc(String name) {
         textDeclareBuffer.append(String.format("  .global %s\n", name));
         textDefineBuffer.append(String.format("%s:\n", name));
-        textDefineBuffer.append(String.format("  addi sp, sp, %d\n", -size));
     }
 
     public void addLabel(String label) {
