@@ -15,14 +15,14 @@ import java.util.HashMap;
  */
 
 public class AbstractOperation implements Operation {
-    private MutableIR ir;
-    private Map<Integer, Integer> indexMapping;
-    private int originalSize;
+    private final MutableIR ir;
+    private final Map<Integer, Integer> indexMapping;
+    private final int originalSize;
 
 
     public AbstractOperation(IR ir) {
         this.ir = new MutableIR(ir);
-        this.originalSize = this.ir.get_size();
+        this.originalSize = this.ir.getSize();
         this.indexMapping = new HashMap<>();
         for (int i = 0; i < originalSize; i++) {
             indexMapping.put(i, i);
@@ -114,7 +114,7 @@ public class AbstractOperation implements Operation {
     /*
      * for complex situation, offers safe operation
      * For example, if you remove the statement which is the target of if or goto statement,
-     * you should modify the correspondding statement too
+     * you should modify the corresponding statement too
      */
     
     public boolean removeTarget(int originalIndex) {
@@ -129,25 +129,24 @@ public class AbstractOperation implements Operation {
         }
 
         int newTargetIndex = currentIndex;  // when this target is removed, the next one will get its index
-        boolean success = removeByOrigin(originalIndex);
-        if (!success) {
+        if (!removeByOrigin(originalIndex)) {
             return false;
         }
 
         for (Stmt stmt : ir) {
-            if (stmt instanceof If ifstmt) {
-                if (ifstmt.getTarget() == targetStmt) {
-                    ifstmt.setTarget(ir.getStmt(newTargetIndex)); // set to a new target
+            if (stmt instanceof If ifStmt) {
+                if (ifStmt.getTarget() == targetStmt) {
+                    ifStmt.setTarget(ir.getStmt(newTargetIndex)); // set to a new target
                 }
             }
-            if (stmt instanceof Goto gotostmt) {
-                if (gotostmt.getTarget() == targetStmt) {
-                    gotostmt.setTarget(ir.getStmt(newTargetIndex)); // set to a new target
+            if (stmt instanceof Goto gotoStmt) {
+                if (gotoStmt.getTarget() == targetStmt) {
+                    gotoStmt.setTarget(ir.getStmt(newTargetIndex)); // set to a new target
                 }
             }
         }
 
-        return success;
+        return true;
 
     }
 

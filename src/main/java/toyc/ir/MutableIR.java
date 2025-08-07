@@ -164,7 +164,7 @@ public class MutableIR extends AbstractResultHolder implements IR {
         return getStmt(i);
     }
 
-    public int get_size() {
+    public int getSize() {
         return stmts.size();
     }
 
