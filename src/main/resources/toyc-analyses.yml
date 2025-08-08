@@ -67,7 +67,7 @@
   analysisClass: toyc.analysis.ResultProcessor
   id: process-result
   options:
-    analyses: [ const-prop, common-subexp-eliminate]
+    analyses: [ inter-const-prop ]
     action: dump # | compare
     file: null
     log-mismatches: false

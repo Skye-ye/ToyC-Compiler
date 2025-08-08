@@ -1,6 +1,7 @@
 package toyc.analysis.deadcode;
 
 import toyc.analysis.FunctionAnalysis;
+import toyc.analysis.dataflow.analysis.LiveVariable;
 import toyc.analysis.dataflow.analysis.constprop.CPFact;
 import toyc.analysis.dataflow.analysis.constprop.ConstantPropagation;
 import toyc.analysis.dataflow.analysis.constprop.Evaluator;

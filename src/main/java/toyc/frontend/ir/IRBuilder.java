@@ -2,14 +2,13 @@ package toyc.frontend.ir;
 
 import toyc.ToyCParser;
 import toyc.ToyCParserBaseVisitor;
+import toyc.World;
 import toyc.ir.IR;
 import toyc.ir.exp.*;
 import toyc.ir.stmt.*;
 import toyc.language.Function;
 import toyc.language.Program;
 import toyc.language.type.IntType;
-import toyc.language.type.Type;
-import toyc.language.type.VoidType;
 import toyc.util.Timer;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.apache.logging.log4j.LogManager;
@@ -37,7 +36,6 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
 
     // ==================== Core State ====================
     private final Map<String, IR> functions;
-    private final Map<String, Function> functionMap;
     private Function currentFunction;
     private final List<Stmt> stmts;
 
@@ -54,7 +52,6 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
 
     public IRBuilder() {
         this.functions = new HashMap<>();
-        this.functionMap = new HashMap<>();
         this.stmts = new ArrayList<>();
         this.scopeStack = new Stack<>();
         this.variableCounters = new HashMap<>();
@@ -76,10 +73,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         logger.info(timer);
     }
 
-    public Map<String, IR> getFunctions() {
-        return functions;
-    }
-
+    @Override
     public IR buildIR(Function function) {
         initializeFunctionContext(function);
 
@@ -87,9 +81,11 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         enterScope();
         registerParameters(params);
 
-        // Build the function body (implementation would be in visitFuncDef)
-
         return createIR(params);
+    }
+
+    public Map<String, IR> getFunctions() {
+        return functions;
     }
 
     // ==================== AST Visitors - Program Structure ====================
@@ -102,7 +98,6 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
     @Override
     public RValue visitCompUnit(ToyCParser.CompUnitContext ctx) {
         // Two-pass compilation for forward references
-        collectAllFunctionSignatures(ctx);
         buildAllFunctions(ctx);
         return null;
     }
@@ -110,7 +105,11 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
     @Override
     public RValue visitFuncDef(ToyCParser.FuncDefContext ctx) {
         String funcName = ctx.funcName().IDENT().getText();
-        currentFunction = functionMap.get(funcName);
+        currentFunction =
+                World.get().getProgram().getFunction(funcName).orElse(null);
+        if (currentFunction == null) {
+            throw new RuntimeException("Undefined function: " + funcName);
+        }
 
         initializeFunctionState();
 
@@ -560,13 +559,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
             return true;
         }
 
-        // Last statement in function - keep if targeted
-        if (index == stmts.size() - 1) {
-            return false;
-        }
-
-        // Can be removed if followed by another statement
-        return true;
+        return index != stmts.size() - 1;
     }
 
     private void removeNops(List<Stmt> nopsToRemove) {
@@ -645,7 +638,6 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
 
         // Control flow labels
         Stmt setTrue = createNopPlaceholder();
-        Stmt evaluateRight = createNopPlaceholder();
         Stmt setFalse = createNopPlaceholder();
         Stmt afterOr = createNopPlaceholder();
 
@@ -813,34 +805,10 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
 
     // ==================== Utility Methods ====================
 
-    private void collectAllFunctionSignatures(ToyCParser.CompUnitContext ctx) {
-        for (ToyCParser.FuncDefContext funcDef : ctx.funcDef()) {
-            collectFunctionSignature(funcDef);
-        }
-    }
-
     private void buildAllFunctions(ToyCParser.CompUnitContext ctx) {
         for (ToyCParser.FuncDefContext funcDef : ctx.funcDef()) {
             visit(funcDef);
         }
-    }
-
-    private void collectFunctionSignature(ToyCParser.FuncDefContext ctx) {
-        String funcName = ctx.funcName().IDENT().getText();
-        Type returnType = isVoidFunction(ctx) ? VoidType.VOID : IntType.INT;
-
-        List<Type> paramTypes = new ArrayList<>();
-        List<String> paramNames = new ArrayList<>();
-
-        if (ctx.funcFParams() != null) {
-            for (ToyCParser.FuncFParamContext param : ctx.funcFParams().funcFParam()) {
-                paramTypes.add(IntType.INT);
-                paramNames.add(param.IDENT().getText());
-            }
-        }
-
-        Function function = new Function(funcName, paramTypes, returnType, paramNames);
-        functionMap.put(funcName, function);
     }
 
     private void buildAllInParallel(Program program) {
@@ -872,14 +840,21 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
     private void shutdownExecutor(ExecutorService executor) {
         executor.shutdown();
         try {
-            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    System.err.println("Executor did not terminate gracefully");
+                }
+            }
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
         }
     }
 
     private Function getFunctionOrError(String funcName) {
-        Function function = functionMap.get(funcName);
+        Function function =
+                World.get().getProgram().getFunction(funcName).orElse(null);
         if (function == null) {
             throw new RuntimeException("Undefined function: " + funcName);
         }

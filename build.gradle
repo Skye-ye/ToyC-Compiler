@@ -22,8 +22,7 @@ dependencies {
     implementation("org.slf4j:slf4j-nop:2.0.13")
     implementation("com.google.code.findbugs:jsr305:3.0.2")
     testImplementation platform('org.junit:junit-bom:5.10.2')
-    testImplementation("org.junit.jupiter:junit-jupiter-api")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+    testImplementation('org.junit.jupiter:junit-jupiter')
 }
 
 generateGrammarSource {
@@ -42,4 +41,21 @@ test {
     testLogging {
         events "passed", "skipped", "failed"
     }
+}
+
+compileJava {
+    options.compilerArgs += [
+            '-Xlint:unchecked',
+            '-Xlint:deprecation',
+            '-Xlint:rawtypes'
+    ]
+    options.encoding = 'UTF-8'
+}
+
+compileTestJava {
+    options.compilerArgs += [
+            '-Xlint:unchecked',
+            '-Xlint:deprecation'
+    ]
+    options.encoding = 'UTF-8'
 }
