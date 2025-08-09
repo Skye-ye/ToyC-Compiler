@@ -189,5 +189,13 @@ public class ManualIRCreator {
         System.out.println("\n=== 包含函数调用的IR示例 ===");
         IR callIR = createCallSampleIR();
         IRPrinter.print(callIR, System.out);
+
+
+
+        // 运行ComprehensiveOperationTest
+        System.out.println("\n=== 运行全面操作测试（使用复杂IR） ===");
+        ComprehensiveOperationTest comprehensiveTest = new ComprehensiveOperationTest(complexIR);
+        IR comprehensiveResult = comprehensiveTest.testAll();
+        System.out.println("全面操作测试完成，最终语句数: " + comprehensiveResult.getStmts().size());
     }
 }

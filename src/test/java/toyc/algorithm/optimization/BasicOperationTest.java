@@ -1,6 +1,8 @@
 package toyc.algorithm.optimization;
 
 import toyc.ir.*;
+import toyc.ir.stmt.If;
+import toyc.ir.stmt.Nop;
 import toyc.ir.stmt.Stmt;
 
 public class BasicOperationTest {
@@ -17,6 +19,8 @@ public class BasicOperationTest {
         removeTest();
         insertTest();
         replaceTest();
+
+
         return op.getCurrentIR();
     }
 
@@ -38,4 +42,6 @@ public class BasicOperationTest {
         op.replaceWithNop(2);
         IRPrinter.print(op.getCurrentIR(), System.out);
     }
+
+
 }
