@@ -31,6 +31,7 @@ public class ToyCWorldBuilder extends AbstractWorldBuilder {
 
     private static final Logger logger = LogManager.getLogger(ToyCWorldBuilder.class);
     private Map<String, Function> functions;
+    private Map<String, ToyCParser.FuncDefContext> functionContexts;
 
     @Override
     public void build(Options options, List<AnalysisConfig> analyses) {
@@ -44,16 +45,18 @@ public class ToyCWorldBuilder extends AbstractWorldBuilder {
         // Set options
         world.setOptions(options);
 
-        // Initialize IR builder
-        IRBuilder irBuilder = new IRBuilder();
+        // Initialize function and context maps
         this.functions = new HashMap<>();
+        this.functionContexts = new HashMap<>();
 
         // Process input files
         String inputFile = getInputFile(options);
 
+        // Front-end processing
         frontEnd(inputFile);
 
         // Set IR builder
+        IRBuilder irBuilder = new IRBuilder(functionContexts);
         world.setIRBuilder(irBuilder);
 
         logger.info("ToyC world built successfully with {} functions", functions.size());
@@ -179,6 +182,7 @@ public class ToyCWorldBuilder extends AbstractWorldBuilder {
 
             Function function = new Function(funcName, paramTypes, returnType, paramNames);
             functions.put(funcName, function);
+            functionContexts.put(funcName, funcDef);
         }
     }
 }
