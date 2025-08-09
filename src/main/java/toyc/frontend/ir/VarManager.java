@@ -28,10 +28,13 @@ public class VarManager {
     private Scope scope;
     private final Map<String, Integer> variableCounters; // For handling shadowing
 
+    private final List<Var> vars;
+
     public VarManager(Function function) {
         this.function = function;
         this.scope = new Scope(null);
         this.variableCounters = new HashMap<>();
+        this.vars = new ArrayList<>();
     }
 
     /**
@@ -39,7 +42,10 @@ public class VarManager {
      * @return A new temporary variable with a unique name.
      */
     public Var createTemp() {
-        return new Var(function, TEMP_PREFIX + tempCounter++, IntType.INT, varIndex++);
+        Var temp = new Var(function, TEMP_PREFIX + tempCounter++, IntType.INT,
+                varIndex++);
+        vars.add(temp);
+        return temp;
     }
 
     /**
@@ -48,7 +54,10 @@ public class VarManager {
      * @return A new constant variable with a unique name.
      */
     public Var createConstVar(IntLiteral literal) {
-        return new Var(function, CONST_PREFIX + constCounter++, IntType.INT, varIndex++, literal);
+        Var constVar = new Var(function, CONST_PREFIX + constCounter++,
+                IntType.INT, varIndex++, literal);
+        vars.add(constVar);
+        return constVar;
     }
 
     /**
@@ -57,7 +66,9 @@ public class VarManager {
      * @return A new local variable with the specified name.
      */
     public Var createLocalVariable(String name) {
-        return new Var(function, name, IntType.INT, varCounter++);
+        Var localVar = new Var(function, name, IntType.INT, varCounter++);
+        vars.add(localVar);
+        return localVar;
     }
 
     /**
@@ -101,34 +112,19 @@ public class VarManager {
     }
 
     /**
+     * Get all Vars defined in the current function.
+     * @return A list of Var
+     */
+    public List<Var> getVars() {
+        return vars;
+    }
+
+    /**
      * Generate a unique variable name by appending a counter.
      */
     private String generateUniqueVariableName(String originalName) {
         int counter = variableCounters.getOrDefault(originalName, 0) + 1;
         variableCounters.put(originalName, counter);
         return originalName + VAR_SUFFIX_SEPARATOR + counter;
-    }
-
-    /**
-     * Collect all variables from all scopes, excluding parameters.
-     */
-    public List<Var> collectAllVariables(List<Var> params) {
-        List<Var> allVars = new ArrayList<>(params);
-
-        // Build set of parameter names for exclusion
-        Set<String> paramNames = new HashSet<>();
-        for (Var param : params) {
-            paramNames.add(param.getName());
-        }
-
-        // Add local variables (excluding parameters)
-        Set<Var> allScopeVars = scope.getAllVariables();
-        for (Var var : allScopeVars) {
-            if (!paramNames.contains(var.getName())) {
-                allVars.add(var);
-            }
-        }
-
-        return allVars;
     }
 }

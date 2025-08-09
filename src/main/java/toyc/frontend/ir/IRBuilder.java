@@ -32,8 +32,10 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
     private VarManager varManager;
 
     private Function function;
+
     private List<Stmt> stmts;
     private List<Var> params;
+    private Set<Var> returnVars;
 
     private Stack<Stmt> breakTargets;
     private Stack<Stmt> continueTargets;
@@ -59,6 +61,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         this.varManager = new VarManager(function);
         this.stmts = new ArrayList<>();
         this.params = new ArrayList<>();
+        this.returnVars = new HashSet<>();
         this.breakTargets = new Stack<>();
         this.continueTargets = new Stack<>();
 
@@ -334,11 +337,6 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         stmts.add(stmt);
     }
 
-    private void addStatement(Stmt stmt) {
-        // Generated statements keep default -1 line number
-        stmts.add(stmt);
-    }
-
     // ==================== Optimization Methods ====================
 
     private void optimizeJumps() {
@@ -507,7 +505,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         generateConditionalJump(leftCondition, evaluateRight, setFalse, ctx);
 
         // Evaluate right operand
-        addStatement(evaluateRight);
+        addStatement(evaluateRight, ctx);
         RValue rightExp = visit(ctx.exp(1));
         Var rightVar = convertToVar(rightExp, ctx);
         ConditionExp rightCondition = createConditionFromVar(rightVar, ctx);
@@ -516,15 +514,15 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         generateConditionalJump(rightCondition, setTrueResult, setFalse, ctx);
 
         // Set result = 1
-        addStatement(setTrueResult);
+        addStatement(setTrueResult, ctx);
         assignBooleanValue(resultVar, true, ctx);
         generateGoto(afterAnd, ctx);
 
         // Set result = 0
-        addStatement(setFalse);
+        addStatement(setFalse, ctx);
         assignBooleanValue(resultVar, false, ctx);
 
-        addStatement(afterAnd);
+        addStatement(afterAnd, ctx);
         return resultVar;
     }
 
@@ -555,15 +553,15 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         generateConditionalJump(rightCondition, setTrue, setFalse, ctx);
 
         // Set result = 1
-        addStatement(setTrue);
+        addStatement(setTrue, ctx);
         assignBooleanValue(resultVar, true, ctx);
         generateGoto(afterOr, ctx);
 
         // Set result = 0
-        addStatement(setFalse);
+        addStatement(setFalse, ctx);
         assignBooleanValue(resultVar, false, ctx);
 
-        addStatement(afterOr);
+        addStatement(afterOr, ctx);
         return resultVar;
     }
 
@@ -616,11 +614,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         // Set statement indices
         assignStatementIndices();
 
-        // Create final IR
-        Set<Var> returnVars = new HashSet<>();
-        List<Var> allVars = varManager.collectAllVariables(params);
-
-        return new DefaultIR(function, params, returnVars, allVars, stmts);
+        return new DefaultIR(function, params, returnVars, varManager.getVars(), stmts);
     }
 
     private void assignStatementIndices() {
@@ -694,6 +688,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         if (ctx.exp() != null) {
             RValue exp = visit(ctx.exp());
             returnValue = convertToVar(exp, ctx);
+            returnVars.add(returnValue);
         }
 
         addStatement(new Return(returnValue), ctx);
@@ -784,7 +779,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         addStatement(gotoElse, ctx);
 
         // Then branch
-        addStatement(thenStart);
+        addStatement(thenStart, ctx);
         visit(ctx.stmt(0));
 
         if (!thenReturns) {
@@ -792,12 +787,12 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         }
 
         // Else branch
-        addStatement(elseStart);
+        addStatement(elseStart, ctx);
         visit(ctx.stmt(1));
 
         // Add afterIf if needed
         if (!thenReturns || !elseReturns) {
-            addStatement(afterIf);
+            addStatement(afterIf, ctx);
         }
     }
 
@@ -808,16 +803,16 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         addStatement(gotoEnd, ctx);
 
         // Then branch
-        addStatement(thenStart);
+        addStatement(thenStart, ctx);
         visit(ctx.stmt(0));
 
         // Always add afterIf for single-branch if
-        addStatement(afterIf);
+        addStatement(afterIf, ctx);
     }
 
     private void generateWhileLoop(ToyCParser.StmtContext ctx, Stmt conditionStart, Stmt bodyStart, Stmt afterWhile) {
         // Condition evaluation
-        addStatement(conditionStart);
+        addStatement(conditionStart, ctx);
         RValue conditionExp = visit(ctx.exp());
         ConditionExp condition = createCondition(conditionExp, ctx);
 
@@ -830,14 +825,14 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         generateGoto(afterWhile, ctx);
 
         // Body
-        addStatement(bodyStart);
+        addStatement(bodyStart, ctx);
         visit(ctx.stmt(0));
 
         // goto conditionStart
         generateGoto(conditionStart, ctx);
 
         // After while
-        addStatement(afterWhile);
+        addStatement(afterWhile, ctx);
     }
 
     private RValue getBinaryOperation(ToyCParser.ExpContext ctx) {
