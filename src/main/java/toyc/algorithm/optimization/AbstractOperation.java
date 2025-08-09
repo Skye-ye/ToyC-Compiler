@@ -92,7 +92,7 @@ public class AbstractOperation implements Operation {
      */
     private void updateMappingAfterInsert(int insertedAt) {
         for (Map.Entry<Integer, Integer> entry : indexMapping.entrySet()) {
-            if (entry.getValue() >= insertedAt) {
+            if (entry.getValue()!=null && entry.getValue() >= insertedAt) {
                 entry.setValue(entry.getValue() + 1);
             }
         }
@@ -105,7 +105,7 @@ public class AbstractOperation implements Operation {
     private void updateMappingAfterRemove(int removedAt) {
         indexMapping.put(removedAt, null); //set the removed one as null
         for (Map.Entry<Integer, Integer> entry : indexMapping.entrySet()) {
-            if (entry.getValue() > removedAt) {
+            if (entry.getValue() != null && entry.getValue() > removedAt) {
                 entry.setValue(entry.getValue() - 1);
             }
         }
