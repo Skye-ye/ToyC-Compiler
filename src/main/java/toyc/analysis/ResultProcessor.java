@@ -40,7 +40,7 @@ import static toyc.util.collection.CollectionUtils.getOne;
  * input/output analysis results from/to file, and compare analysis results
  * with input results. This analysis should be placed after the other analyses.
  */
-public class ResultProcessor extends ProgramAnalysis {
+public class ResultProcessor extends ProgramAnalysis<Object> {
 
     public static final String ID = "process-result";
 
@@ -103,9 +103,9 @@ public class ResultProcessor extends ProgramAnalysis {
     private void readInputs() {
         String input = getOptions().getString("file");
         Path path = Path.of(input);
-        try {
-            inputs = Maps.newMultiMap();
-            BufferedReader reader = Files.newBufferedReader(path);
+        inputs = Maps.newMultiMap();
+
+        try (BufferedReader reader = Files.newBufferedReader(path)) {
             String line;
             Pair<String, String> currentKey = null;
             while ((line = reader.readLine()) != null) {
@@ -113,6 +113,7 @@ public class ResultProcessor extends ProgramAnalysis {
                 if (key != null) {
                     currentKey = key;
                 } else if (!line.isBlank()) {
+                    assert currentKey != null;
                     inputs.put(currentKey, line);
                 }
             }
@@ -252,10 +253,10 @@ public class ResultProcessor extends ProgramAnalysis {
                     .forEach(stmt -> {
                         String stmtStr = toString(stmt);
                         String given = toString(stmt, stmtResult);
-                        boolean foundExpeceted = false;
+                        boolean foundExpected = false;
                         for (String line : lines) {
                             if (line.startsWith(stmtStr)) {
-                                foundExpeceted = true;
+                                foundExpected = true;
                                 if (!line.equals(given)) {
                                     int idx = stmtStr.length();
                                     mismatches.add(String.format("%s %s expected: %s, given: %s",
@@ -265,7 +266,7 @@ public class ResultProcessor extends ProgramAnalysis {
                                 }
                             }
                         }
-                        if (!foundExpeceted) {
+                        if (!foundExpected) {
                             int idx = stmtStr.length();
                             mismatches.add(String.format("%s %s expected: null, given: %s",
                                     function, stmtStr, given.substring(idx + 1)));

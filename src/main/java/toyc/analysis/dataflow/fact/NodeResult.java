@@ -39,6 +39,7 @@ public interface NodeResult<Node, Fact> extends StmtResult<Fact> {
      * @return out fact as the analysis result for given stmt.
      */
     @Override
+    @SuppressWarnings("unchecked")
     default Fact getResult(Stmt stmt) {
         return getOutFact((Node) stmt);
     }
