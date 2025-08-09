@@ -19,10 +19,10 @@ public class VarManager {
 
     private final Function function;
 
-    // Counters for generating unique names
     private int varCounter = 0;
     private int tempCounter = 0;
     private int constCounter = 0;
+    private int varIndex = 0;
 
     // Scope management
     private Scope scope;
@@ -36,20 +36,25 @@ public class VarManager {
 
     /**
      * Create a new temporary variable.
+     * @return A new temporary variable with a unique name.
      */
     public Var createTemp() {
-        return new Var(function, TEMP_PREFIX + tempCounter++, IntType.INT, -1);
+        return new Var(function, TEMP_PREFIX + tempCounter++, IntType.INT, varIndex++);
     }
 
     /**
      * Create a constant variable with int literal.
+     * @param literal the integer literal for the constant variable.
+     * @return A new constant variable with a unique name.
      */
     public Var createConstVar(IntLiteral literal) {
-        return new Var(function, CONST_PREFIX + constCounter++, IntType.INT, -1, literal);
+        return new Var(function, CONST_PREFIX + constCounter++, IntType.INT, varIndex++, literal);
     }
 
     /**
      * Create a local variable with the given name.
+     * @param name the name of the local variable.
+     * @return A new local variable with the specified name.
      */
     public Var createLocalVariable(String name) {
         return new Var(function, name, IntType.INT, varCounter++);
@@ -78,6 +83,8 @@ public class VarManager {
 
     /**
      * Look up a variable by name, searching from innermost to outermost scope.
+     * @param name the name of the variable to look up.
+     * @return The variable if found, or null if not found.
      */
     public Var lookupVariable(String name) {
         return scope.resolve(name);

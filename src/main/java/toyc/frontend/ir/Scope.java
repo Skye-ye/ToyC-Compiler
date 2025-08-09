@@ -21,6 +21,10 @@ public class Scope {
     }
 
     public void define(String name, Var var) {
+        // Check for redefinition in the current scope
+        if (variables.containsKey(name)) {
+            throw new IllegalArgumentException("Variable " + name + " is already defined in this scope.");
+        }
         variables.put(name, var);
     }
 
