@@ -8,6 +8,7 @@ import toyc.algorithm.analysis.FunctionAnalysis;
 import toyc.algorithm.analysis.ProgramAnalysis;
 import toyc.algorithm.analysis.graph.callgraph.CallGraph;
 import toyc.algorithm.analysis.graph.callgraph.CallGraphBuilder;
+import toyc.algorithm.optimization.Optimization;
 import toyc.config.AlgorithmConfig;
 import toyc.config.ConfigException;
 import toyc.config.Plan;
@@ -106,12 +107,11 @@ public class AlgorithmManager {
                     config.getAlgorithmClass() + " is not an analysis class");
         }
         // Run the analysis
-        if (algorithm instanceof ProgramAnalysis<?> pa) {
-            runProgramAnalysis(pa);
-        } else if (algorithm instanceof FunctionAnalysis<?> ma) {
-            runMethodAnalysis(ma);
-        } else {
-            throw new ConfigException(config.getAlgorithmClass() +
+        switch (algorithm) {
+            case ProgramAnalysis<?> pa -> runProgramAnalysis(pa);
+            case FunctionAnalysis<?> ma -> runFunctionAnalysis(ma);
+            case Optimization opt -> runOptimization(opt);
+            default -> throw new ConfigException(config.getAlgorithmClass() +
                     " is not a supported analysis class");
         }
         return algorithm;
@@ -124,7 +124,7 @@ public class AlgorithmManager {
         }
     }
 
-    private void runMethodAnalysis(FunctionAnalysis<?> analysis) {
+    private void runFunctionAnalysis(FunctionAnalysis<?> analysis) {
         getFunctionScope()
                 .parallelStream()
                 .forEach(m -> {
@@ -133,6 +133,16 @@ public class AlgorithmManager {
                     if (result != null) {
                         ir.storeResult(analysis.getId(), result);
                     }
+                });
+    }
+
+    private void runOptimization(Optimization optimization) {
+        getFunctionScope()
+                .parallelStream()
+                .forEach(m -> {
+                    IR ir = m.getIR();
+                    IR optimizedIR = optimization.optimize(ir);
+                    m.setIR(optimizedIR);
                 });
     }
 
