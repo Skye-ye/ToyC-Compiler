@@ -1,4 +1,4 @@
-package toyc;
+package toyc.frontend.semantic;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
