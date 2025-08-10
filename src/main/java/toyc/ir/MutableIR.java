@@ -43,7 +43,7 @@ public class MutableIR extends AbstractResultHolder implements IR {
     }
 
     public IR toImmutableIR() {
-        return new DefaultIR(function, params, Set.copyOf(returnVars), vars, List.copyOf(stmts));
+        return new DefaultIR(function, params, Set.copyOf(returnVars), vars, stmts);
     }
 
     /**
@@ -94,13 +94,6 @@ public class MutableIR extends AbstractResultHolder implements IR {
         for (int i = 0; i < stmts.size(); i++) {
             stmts.get(i).setIndex(i);
         }
-    }
-
-    /**
-     * Convert back to immutable IR.
-     */
-    public DefaultIR toImmutable() {
-        return new DefaultIR(function, params, Set.copyOf(returnVars), vars, stmts);
     }
 
     // 实现 IR 接口的其他方法

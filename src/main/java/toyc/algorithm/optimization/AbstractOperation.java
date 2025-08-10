@@ -17,12 +17,10 @@ import java.util.HashMap;
 public class AbstractOperation implements Operation {
     private final MutableIR ir;
     private final Map<Integer, Integer> indexMapping;
-    private final int originalSize;
-
 
     public AbstractOperation(IR ir) {
         this.ir = new MutableIR(ir);
-        this.originalSize = this.ir.getSize();
+        int originalSize = this.ir.getSize();
         this.indexMapping = new HashMap<>();
         for (int i = 0; i < originalSize; i++) {
             indexMapping.put(i, i);
@@ -34,6 +32,7 @@ public class AbstractOperation implements Operation {
     public boolean insert(Stmt stmt, int index){
         return ir.insertStmt(index, stmt);
     }
+
     @Override
     public boolean remove(int index) {
         Stmt stmt = ir.getStmt(index);
@@ -42,6 +41,7 @@ public class AbstractOperation implements Operation {
         }
         return ir.removeStmt(index);
     }
+
     @Override
     public boolean replaceWithNop(int index) {
         Stmt stmt = ir.getStmt(index);
@@ -116,7 +116,6 @@ public class AbstractOperation implements Operation {
      * For example, if you remove the statement which is the target of if or goto statement,
      * you should modify the corresponding statement too
      */
-    
     public boolean removeTarget(int originalIndex) {
         Integer currentIndex = indexMapping.get(originalIndex);
         if (currentIndex == null) {
@@ -154,12 +153,15 @@ public class AbstractOperation implements Operation {
     public Integer getCurrentIndex(int originalIndex) {
         return indexMapping.get(originalIndex);
     }
+
     public boolean isValidOriginalIndex(int originalIndex) {
        return indexMapping.containsKey(originalIndex);
     }
+
     public IR getCurrentIR() {
         return ir.toImmutableIR();
     }
+
     // get statement by current index
     public Stmt getStmt(int currentIndex) {
         return ir.getStmt(currentIndex);
