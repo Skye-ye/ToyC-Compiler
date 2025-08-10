@@ -1,94 +1,93 @@
 package toyc.ir;
 
 import toyc.ir.exp.Var;
+import toyc.ir.stmt.Return;
 import toyc.ir.stmt.Stmt;
 import toyc.language.Function;
-import toyc.util.AbstractResultHolder;
-import toyc.util.Indexer;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import javax.annotation.Nonnull;
+import java.util.*;
 
 /**
  * Mutable implementation of IR that supports insertion and removal of statements.
  */
-public class MutableIR extends AbstractResultHolder implements IR {
+public class MutableIR {
 
     private final Function function;
-    private final List<Var> params;
-    private final List<Var> vars;
-    private final List<Var> returnVars;
-    private final Indexer<Var> varIndexer;
-    private final List<Stmt> stmts; // 可变的语句列表
+    private final List<Var> params; // Immutable
+    private final List<Var> vars; // Mutable
+    private Set<Var> returnVars; // Mutable
+    private final List<Stmt> stmts; // Mutable
 
-    public MutableIR(IR originalIR) {
-        this.function = originalIR.getFunction();
-        this.params = List.copyOf(originalIR.getParams());
-        this.returnVars = List.copyOf(originalIR.getReturnVars());
-        this.vars = List.copyOf(originalIR.getVars());
-        this.varIndexer = new VarIndexer();
-        this.stmts = new ArrayList<>(originalIR.getStmts()); // 创建可变副本
-    }
-
-    public MutableIR(Function function, List<Var> params, Set<Var> returnVars, 
-                     List<Var> vars, List<Stmt> stmts) {
-        this.function = function;
-        this.params = List.copyOf(params);
-        this.returnVars = List.copyOf(returnVars);
-        this.vars = List.copyOf(vars);
-        this.varIndexer = new VarIndexer();
-        this.stmts = new ArrayList<>(stmts);
+    public MutableIR(IR ir) {
+        this.function = ir.getFunction();
+        this.params = List.copyOf(ir.getParams());
+        this.vars = List.copyOf(ir.getVars());
+        this.stmts = new LinkedList<>(ir.getStmts());
     }
 
     public IR toImmutableIR() {
-        return new DefaultIR(function, params, Set.copyOf(returnVars), vars, stmts);
-    }
-
-    /**
-     * Insert a statement at the specified index.
-     */
-    public boolean insertStmt(int index, Stmt stmt) {
-        if (index < 0 || index > stmts.size()) {
-            return false;
-        }
-        
-        stmts.add(index, stmt);
-        // 重新设置所有语句的索引
         reindexStmts();
-        return true;
+        collectReturnVars();
+        return new DefaultIR(function, params, returnVars, vars, stmts);
     }
 
     /**
-     * Remove a statement at the specified index.
+     * Insert a statement after the specified statement.
+     * Efficient O(n) operation for LinkedList.
      */
-    public boolean removeStmt(int index) {
-        if (index < 0 || index >= stmts.size()) {
-            return false;
+    public boolean insertAfter(@Nonnull Stmt afterStmt, @Nonnull Stmt newStmt) {
+        ListIterator<Stmt> iterator = stmts.listIterator();
+        while (iterator.hasNext()) {
+            if (iterator.next() == afterStmt) {
+                iterator.add(newStmt);
+                return true;
+            }
         }
-        
-        stmts.remove(index);
-        // 重新设置所有语句的索引
-        reindexStmts();
-        return true;
+        return false; // Statement not found
     }
 
     /**
-     * Replace a statement at the specified index.
+     * Insert a statement before the specified statement.
+     * Efficient O(n) operation for LinkedList.
      */
-    public boolean replaceStmt(int index, Stmt newStmt) {
-        if (index < 0 || index >= stmts.size()) {
-            return false;
+    public boolean insertBefore(@Nonnull Stmt beforeStmt, @Nonnull Stmt newStmt) {
+        ListIterator<Stmt> iterator = stmts.listIterator();
+        while (iterator.hasNext()) {
+            if (iterator.next() == beforeStmt) {
+                iterator.previous(); // Go back to the position before beforeStmt
+                iterator.add(newStmt);
+                return true;
+            }
         }
-        
-        stmts.set(index, newStmt);
-        newStmt.setIndex(index);
-        return true;
+        return false; // Statement not found
     }
 
     /**
-     * Re-index all statements after modification.
+     * Remove the specified statement.
+     * O(n) operation but efficient for LinkedList.
+     */
+    public boolean removeStmt(@Nonnull Stmt stmt) {
+        return stmts.remove(stmt);
+    }
+
+    /**
+     * Replace a statement with another statement.
+     * Efficient O(n) operation for LinkedList.
+     */
+    public boolean replaceStmt(@Nonnull Stmt oldStmt, @Nonnull Stmt newStmt) {
+        ListIterator<Stmt> iterator = stmts.listIterator();
+        while (iterator.hasNext()) {
+            if (iterator.next() == oldStmt) {
+                iterator.set(newStmt);
+                return true;
+            }
+        }
+        return false; // Statement not found
+    }
+
+    /**
+     * Re-index all statements
      */
     private void reindexStmts() {
         for (int i = 0; i < stmts.size(); i++) {
@@ -96,76 +95,15 @@ public class MutableIR extends AbstractResultHolder implements IR {
         }
     }
 
-    // 实现 IR 接口的其他方法
-    @Override
-    public Function getFunction() {
-        return function;
-    }
-
-    @Override
-    public List<Var> getParams() {
-        return params;
-    }
-
-    @Override
-    public Var getParam(int i) {
-        return params.get(i);
-    }
-
-    @Override
-    public boolean isParam(Var var) {
-        return params.contains(var);
-    }
-
-    @Override
-    public List<Var> getReturnVars() {
-        return returnVars;
-    }
-
-    @Override
-    public Var getVar(int i) {
-        return vars.get(i);
-    }
-
-    @Override
-    public List<Var> getVars() {
-        return vars;
-    }
-
-    @Override
-    public Indexer<Var> getVarIndexer() {
-        return varIndexer;
-    }
-
-    @Override
-    public Stmt getStmt(int i) {
-        return stmts.get(i);
-    }
-
-    @Override
-    public List<Stmt> getStmts() {
-        return stmts;
-    }
-
-    @Override
-    public int getIndex(Stmt s) {
-        return s.getIndex();
-    }
-
-    @Override
-    public Stmt getObject(int i) {
-        return getStmt(i);
-    }
-
-    private class VarIndexer implements Indexer<Var>, Serializable {
-        @Override
-        public int getIndex(Var v) {
-            return v.getIndex();
-        }
-
-        @Override
-        public Var getObject(int i) {
-            return getVar(i);
+    private void collectReturnVars() {
+        returnVars = new HashSet<>();
+        for (Stmt stmt : stmts) {
+            if (stmt instanceof Return returnStmt) {
+                Var retVar = returnStmt.getValue();
+                if (retVar != null) {
+                    returnVars.add(retVar);
+                }
+            }
         }
     }
 }

@@ -12,20 +12,20 @@ public class BasicOperationTest {
 
     public IR test() {
         System.out.println("=== 初始IR ===");
-        IRPrinter.print(op.getCurrentIR(), System.out);
+        IRPrinter.print(op.getIR(), System.out);
         
         removeTest();
         insertTest();
         replaceTest();
 
 
-        return op.getCurrentIR();
+        return op.getIR();
     }
 
     public void removeTest() {
         System.out.println("\n=== 删除第0条语句 ===");
         op.removeByOrigin(0);
-        IRPrinter.print(op.getCurrentIR(), System.out);
+        IRPrinter.print(op.getIR(), System.out);
     }
 
     public void insertTest() {
@@ -33,13 +33,13 @@ public class BasicOperationTest {
         Stmt stmt = op.getStmt(0);
         assert stmt != null;
         op.insertByOrigin(stmt, 1);
-        IRPrinter.print(op.getCurrentIR(), System.out);
+        IRPrinter.print(op.getIR(), System.out);
     }
 
     public void replaceTest() {
         System.out.println("\n=== 替换第2条语句为nop ===");
         op.replaceWithNop(2);
-        IRPrinter.print(op.getCurrentIR(), System.out);
+        IRPrinter.print(op.getIR(), System.out);
     }
 
 

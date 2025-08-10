@@ -3,7 +3,6 @@ package toyc.algorithm.optimization;
 import toyc.algorithm.Algorithm;
 import toyc.config.AlgorithmConfig;
 import toyc.ir.IR;
-import toyc.language.Function;
 
 /**
  * Abstract base class for all optimizations.

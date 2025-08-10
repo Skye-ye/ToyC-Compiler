@@ -55,7 +55,7 @@ public class Var implements LValue, RValue, Indexable {
     /**
      * @return the method containing this Var.
      */
-    public Function getMethod() {
+    public Function getFunction() {
         return function;
     }
 

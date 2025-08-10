@@ -1,6 +1,6 @@
 optionsFile: null
 printHelp: false
-inputFile: src/test/resources/toyc/ir/IfElse.tc
+inputFile: src/test/resources/toyc/oj/05_function_call.tc
 worldBuilderClass: toyc.frontend.ToyCWorldBuilder
 outputDir: output
 preBuildIR: false
@@ -9,8 +9,8 @@ scope: REACHABLE
 planFile: null
 onlyGenPlan: false
 analyses:
-  dead-code-elim: ""
-  csd: ""
+  const-fold: ""
   inter-const-prop: ""
+  process-result: ""
 keepResult:
   - $KEEP-ALL

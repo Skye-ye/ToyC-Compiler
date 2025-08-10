@@ -16,7 +16,7 @@ public class ComprehensiveOperationTest {
     public IR testAll() {
         System.out.println("=== 全面操作测试开始 ===");
         System.out.println("初始IR：");
-        IRPrinter.print(op.getCurrentIR(), System.out);
+        IRPrinter.print(op.getIR(), System.out);
 
         testRemoveTarget();
         testIndexMapping();
@@ -24,8 +24,8 @@ public class ComprehensiveOperationTest {
         testEdgeCases();
 
         System.out.println("=== 全面操作测试结束 ===");
-        IRPrinter.print(op.getCurrentIR(), System.out);
-        return op.getCurrentIR();
+        IRPrinter.print(op.getIR(), System.out);
+        return op.getIR();
     }
 
     private void testRemoveTarget() {
@@ -33,7 +33,7 @@ public class ComprehensiveOperationTest {
         // 索引7是一个Copy语句，由索引4的If语句引用
         boolean success = op.removeTarget(7);
         System.out.println("在原始索引7处删除目标：" + (success ? "成功" : "失败"));
-        IRPrinter.print(op.getCurrentIR(), System.out);
+        IRPrinter.print(op.getIR(), System.out);
 
         // 验证索引4处的If语句现在指向正确的新目标
         Stmt ifStmt = op.getStmt(op.getCurrentIndex(4));
@@ -49,7 +49,7 @@ public class ComprehensiveOperationTest {
         Stmt nopStmt = new Nop();
         op.insertByOrigin(nopStmt, 2);
         System.out.println("在原始索引2处插入NOP后：");
-        IRPrinter.print(op.getCurrentIR(), System.out);
+        IRPrinter.print(op.getIR(), System.out);
 
         // 检查原始索引的当前索引
         Integer currentIndex = op.getCurrentIndex(2);
@@ -80,12 +80,12 @@ public class ComprehensiveOperationTest {
         Stmt nopStmt = new Nop();
         op.insertByOrigin(nopStmt, 0);
         System.out.println("在原始索引0处插入NOP后：");
-        IRPrinter.print(op.getCurrentIR(), System.out);
+        IRPrinter.print(op.getIR(), System.out);
 
         // 测试删除最后一个语句
-        int lastIndex = op.getCurrentIR().getStmts().size() - 1;
+        int lastIndex = op.getIR().getStmts().size() - 1;
         op.removeByOrigin(lastIndex);
         System.out.println("删除最后一个语句后：");
-        IRPrinter.print(op.getCurrentIR(), System.out);
+        IRPrinter.print(op.getIR(), System.out);
     }
 }
