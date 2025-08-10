@@ -61,6 +61,7 @@ public abstract class AbstractTwoKeyMap<K1, K2, V> implements
         public boolean contains(Object o) {
             if (o instanceof Entry<?, ?, ?> entry) {
                 //noinspection unchecked
+                @SuppressWarnings("unchecked")
                 V v = AbstractTwoKeyMap.this.get(
                         (K1) entry.key1(), (K2) entry.key2());
                 return Objects.equals(entry.value(), v);

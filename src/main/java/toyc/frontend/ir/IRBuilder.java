@@ -1,20 +1,18 @@
 package toyc.frontend.ir;
 
+import org.antlr.v4.runtime.ParserRuleContext;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import toyc.ToyCParser;
 import toyc.ToyCParserBaseVisitor;
+import toyc.World;
+import toyc.ir.DefaultIR;
 import toyc.ir.IR;
 import toyc.ir.exp.*;
 import toyc.ir.stmt.*;
 import toyc.language.Function;
 import toyc.language.Program;
-import toyc.language.type.IntType;
-import toyc.language.type.Type;
-import toyc.language.type.VoidType;
 import toyc.util.Timer;
-import org.antlr.v4.runtime.ParserRuleContext;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import toyc.ir.DefaultIR;
 
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -29,41 +27,22 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
 
     private static final Logger logger = LogManager.getLogger(IRBuilder.class);
 
-    // ==================== Constants ====================
-    private static final String TEMP_PREFIX = "temp$";
-    private static final String CONST_PREFIX = "%intconst";
-    private static final String PARAM_PREFIX = "param";
-    private static final String VAR_SUFFIX_SEPARATOR = "_";
+    private final Map<String, ToyCParser.FuncDefContext> functionContexts;
 
-    // ==================== Core State ====================
-    private final Map<String, IR> functions;
-    private final Map<String, Function> functionMap;
-    private Function currentFunction;
-    private final List<Stmt> stmts;
+    private VarManager varManager;
 
-    // ==================== Variable Management ====================
-    private int varCounter;
-    private int tempCounter;
-    private int constCounter;
-    private final Stack<Map<String, Var>> scopeStack;
-    private final Map<String, Integer> variableCounters; // For handling shadowing
+    private Function function;
 
-    // ==================== Control Flow Management ====================
-    private final Stack<Stmt> breakTargets;
-    private final Stack<Stmt> continueTargets;
+    private List<Stmt> stmts;
+    private List<Var> params;
+    private Set<Var> returnVars;
 
-    public IRBuilder() {
-        this.functions = new HashMap<>();
-        this.functionMap = new HashMap<>();
-        this.stmts = new ArrayList<>();
-        this.scopeStack = new Stack<>();
-        this.variableCounters = new HashMap<>();
-        this.breakTargets = new Stack<>();
-        this.continueTargets = new Stack<>();
-        resetCounters();
+    private Stack<Stmt> breakTargets;
+    private Stack<Stmt> continueTargets;
+
+    public IRBuilder(Map<String, ToyCParser.FuncDefContext> functionContexts) {
+        this.functionContexts = functionContexts;
     }
-
-    // ==================== Public API ====================
 
     @Override
     public void buildAll(Program program) {
@@ -76,83 +55,53 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         logger.info(timer);
     }
 
-    public Map<String, IR> getFunctions() {
-        return functions;
-    }
-
+    @Override
     public IR buildIR(Function function) {
-        initializeFunctionContext(function);
+        this.function = function;
+        this.varManager = new VarManager(function);
+        this.stmts = new ArrayList<>();
+        this.params = new ArrayList<>();
+        this.returnVars = new HashSet<>();
+        this.breakTargets = new Stack<>();
+        this.continueTargets = new Stack<>();
 
-        List<Var> params = createParameters();
-        enterScope();
-        registerParameters(params);
+        // Get the function's AST context
+        ToyCParser.FuncDefContext funcDefContext = functionContexts.get(function.getName());
+        if (funcDefContext == null) {
+            throw new RuntimeException("No AST context found for function: " + function.getName());
+        }
 
-        // Build the function body (implementation would be in visitFuncDef)
-
-        return createIR(params);
-    }
-
-    // ==================== AST Visitors - Program Structure ====================
-
-    @Override
-    public RValue visitProgram(ToyCParser.ProgramContext ctx) {
-        return visit(ctx.compUnit());
-    }
-
-    @Override
-    public RValue visitCompUnit(ToyCParser.CompUnitContext ctx) {
-        // Two-pass compilation for forward references
-        collectAllFunctionSignatures(ctx);
-        buildAllFunctions(ctx);
-        return null;
-    }
-
-    @Override
-    public RValue visitFuncDef(ToyCParser.FuncDefContext ctx) {
-        String funcName = ctx.funcName().IDENT().getText();
-        currentFunction = functionMap.get(funcName);
-
-        initializeFunctionState();
-
-        List<Var> params = createAndRegisterParameters(ctx);
+        // Add function parameters
+        addParameters(funcDefContext);
 
         // Visit function body
-        visit(ctx.block());
+        visit(funcDefContext.block());
 
         // Handle implicit return for void functions
-        ensureProperReturn(ctx);
+        ensureProperReturn(funcDefContext);
 
         // Apply optimizations and finalize IR
-        IR ir = finalizeIR(params);
-        functions.put(funcName, ir);
-
-        return null;
+        return finalizeIR();
     }
 
     @Override
     public RValue visitBlock(ToyCParser.BlockContext ctx) {
-        enterScope();
+        varManager.enterScope();
 
         for (ToyCParser.StmtContext stmt : ctx.stmt()) {
             visit(stmt);
         }
 
-        exitScope();
+        varManager.exitScope();
         return null;
     }
-
-    // ==================== AST Visitors - Statements ====================
 
     @Override
     public RValue visitStmt(ToyCParser.StmtContext ctx) {
         if (ctx.block() != null) {
             return visit(ctx.block());
-        } else if (isAssignment(ctx)) {
+        } else if (ctx.ASSIGN() != null) {
             return handleAssignment(ctx);
-        } else if (ctx.RETURN() != null) {
-            return handleReturn(ctx);
-        } else if (isExpressionStatement(ctx)) {
-            return handleExpressionStatement(ctx);
         } else if (ctx.varDef() != null) {
             return visit(ctx.varDef());
         } else if (ctx.IF() != null) {
@@ -163,6 +112,10 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
             return handleBreak(ctx);
         } else if (ctx.CONTINUE() != null) {
             return handleContinue(ctx);
+        } else if (ctx.RETURN() != null) {
+            return handleReturn(ctx);
+        } else if (ctx.exp() != null) {
+            return handleExpressionStatement(ctx);
         }
         return null;
     }
@@ -170,10 +123,10 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
     @Override
     public RValue visitVarDef(ToyCParser.VarDefContext ctx) {
         String originalName = ctx.IDENT().getText();
-        String actualName = handleVariableShadowing(originalName);
+        String actualName = varManager.handleVariableShadowing(originalName);
 
-        Var variable = createLocalVariable(actualName);
-        defineVariable(originalName, variable);
+        Var variable = varManager.createLocalVariable(actualName);
+        varManager.defineVariable(originalName, variable);
 
         RValue initValue = visit(ctx.exp());
         generateAssignmentStatement(variable, initValue, ctx);
@@ -181,13 +134,11 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         return variable;
     }
 
-    // ==================== AST Visitors - Expressions ====================
-
     @Override
     public RValue visitExp(ToyCParser.ExpContext ctx) {
         if (ctx.funcName() != null) {
             return visitFunctionCall(ctx);
-        } else if (isParenthesizedExpression(ctx)) {
+        } else if (ctx.L_PAREN() != null) {
             return visit(ctx.exp(0));
         } else if (ctx.lVal() != null) {
             return visit(ctx.lVal());
@@ -195,7 +146,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
             return visit(ctx.number());
         } else if (ctx.unaryOp() != null) {
             return visitUnaryOp(ctx);
-        } else if (isBinaryOperation(ctx)) {
+        } else if (ctx.exp().size() == 2) {
             return visitBinaryOp(ctx);
         }
         return null;
@@ -204,7 +155,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
     @Override
     public RValue visitLVal(ToyCParser.LValContext ctx) {
         String varName = ctx.IDENT().getText();
-        Var var = lookupVariable(varName);
+        Var var = varManager.lookupVariable(varName);
 
         if (var == null) {
             throw new RuntimeException("Undefined variable: " + varName);
@@ -235,9 +186,9 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
 
     private RValue visitWhileStatement(ToyCParser.StmtContext ctx) {
         // Create control flow placeholders
-        Stmt conditionLabel = createNopPlaceholder();
-        Stmt bodyLabel = createNopPlaceholder();
-        Stmt exitLabel = createNopPlaceholder();
+        Stmt conditionLabel = new Nop();
+        Stmt bodyLabel = new Nop();
+        Stmt exitLabel = new Nop();
 
         // Setup break/continue context
         pushLoopContext(exitLabel, conditionLabel);
@@ -255,7 +206,11 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
 
     private RValue visitFunctionCall(ToyCParser.ExpContext ctx) {
         String funcName = ctx.funcName().IDENT().getText();
-        Function function = getFunctionOrError(funcName);
+        Function function =
+                World.get().getProgram().getFunction(funcName).orElse(null);
+        if (function == null) {
+            throw new RuntimeException("Undefined function: " + funcName);
+        }
 
         List<Var> arguments = prepareCallArguments(ctx);
 
@@ -270,7 +225,8 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
             case "+" -> operand; // Unary plus is identity
             case "-" -> new NegExp(convertToVar(operand, ctx));
             case "!" -> new NotExp(convertToVar(operand, ctx));
-            default -> throw new RuntimeException("Unknown unary operator: " + operator);
+            default ->
+                    throw new RuntimeException("Unknown unary operator: " + operator);
         };
     }
 
@@ -283,75 +239,24 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         }
 
         // Standard binary operations
-        return generateBinaryOperation(ctx);
-    }
-
-    // ==================== Helper Methods - Scope Management ====================
-
-    private void enterScope() {
-        scopeStack.push(new HashMap<>());
-    }
-
-    private void exitScope() {
-        if (!scopeStack.isEmpty()) {
-            scopeStack.pop();
-        }
-    }
-
-    private void defineVariable(String name, Var var) {
-        if (!scopeStack.isEmpty()) {
-            scopeStack.peek().put(name, var);
-        }
-    }
-
-    private Var lookupVariable(String name) {
-        // Search from innermost to outermost scope
-        for (int i = scopeStack.size() - 1; i >= 0; i--) {
-            Map<String, Var> scope = scopeStack.get(i);
-            if (scope.containsKey(name)) {
-                return scope.get(name);
-            }
-        }
-        return null;
-    }
-
-    private String handleVariableShadowing(String originalName) {
-        if (lookupVariable(originalName) != null) {
-            return generateUniqueVariableName(originalName);
-        }
-        return originalName;
-    }
-
-    private String generateUniqueVariableName(String originalName) {
-        int counter = variableCounters.getOrDefault(originalName, 0) + 1;
-        variableCounters.put(originalName, counter);
-        return originalName + VAR_SUFFIX_SEPARATOR + counter;
-    }
-
-    // ==================== Helper Methods - Variable Creation ====================
-
-    private Var createTemp() {
-        return new Var(currentFunction, TEMP_PREFIX + tempCounter++, IntType.INT, -1);
-    }
-
-    private Var createConstVar(IntLiteral literal) {
-        return new Var(currentFunction, CONST_PREFIX + constCounter++, IntType.INT, -1, literal);
-    }
-
-    private Var createLocalVariable(String name) {
-        return new Var(currentFunction, name, IntType.INT, varCounter++);
+        return getBinaryOperation(ctx);
     }
 
     // ==================== Helper Methods - Statement Generation ====================
 
     private void generateAssignmentStatement(Var target, RValue source, ParserRuleContext ctx) {
         switch (source) {
-            case Literal literal -> addStatement(new AssignLiteral(target, literal), ctx);
+            case Literal literal ->
+                    addStatement(new AssignLiteral(target, literal), ctx);
             case Var var -> addStatement(new Copy(target, var), ctx);
-            case BinaryExp binaryExp -> addStatement(new Binary(target, binaryExp), ctx);
-            case UnaryExp unaryExp -> addStatement(new Unary(target, unaryExp), ctx);
-            case CallExp callExp -> addStatement(new Call(currentFunction, callExp, target), ctx);
-            default -> throw new RuntimeException("Unknown RValue type: " + source.getClass().getSimpleName());
+            case BinaryExp binaryExp ->
+                    addStatement(new Binary(target, binaryExp), ctx);
+            case UnaryExp unaryExp ->
+                    addStatement(new Unary(target, unaryExp), ctx);
+            case CallExp callExp ->
+                    addStatement(new Call(function, callExp, target), ctx);
+            default ->
+                    throw new RuntimeException("Unknown RValue type: " + source.getClass().getSimpleName());
         }
     }
 
@@ -362,34 +267,31 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
 
         return switch (exp) {
             case IntLiteral literal -> {
-                Var constVar = createConstVar(literal);
+                Var constVar = varManager.createConstVar(literal);
                 addStatement(new AssignLiteral(constVar, literal), ctx);
                 yield constVar;
             }
             case BinaryExp binaryExp -> {
-                Var temp = createTemp();
+                Var temp = varManager.createTemp();
                 addStatement(new Binary(temp, binaryExp), ctx);
                 yield temp;
             }
             case UnaryExp unaryExp -> {
-                Var temp = createTemp();
+                Var temp = varManager.createTemp();
                 addStatement(new Unary(temp, unaryExp), ctx);
                 yield temp;
             }
             case CallExp callExp -> {
-                Var temp = createTemp();
-                addStatement(new Call(currentFunction, callExp, temp), ctx);
+                Var temp = varManager.createTemp();
+                addStatement(new Call(function, callExp, temp), ctx);
                 yield temp;
             }
-            default -> throw new RuntimeException("Cannot convert to variable: " + exp.getClass().getSimpleName());
+            default ->
+                    throw new RuntimeException("Cannot convert to variable: " + exp.getClass().getSimpleName());
         };
     }
 
     // ==================== Helper Methods - Control Flow ====================
-
-    private Stmt createNopPlaceholder() {
-        return new Nop();
-    }
 
     private ConditionExp createCondition(RValue conditionExp, ParserRuleContext ctx) {
         if (conditionExp instanceof ConditionExp cond) {
@@ -402,9 +304,16 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         return new ConditionExp(ConditionExp.Op.NE, condVar, zeroVar);
     }
 
+    /**
+     * Creates a zero constant variable and adds an assignment statement to initialize it.
+     * This is used for conditions where we need to compare against zero.
+     *
+     * @param ctx the parser context for error reporting
+     * @return the created zero constant variable
+     */
     private Var createZeroConstant(ParserRuleContext ctx) {
         IntLiteral zeroLiteral = IntLiteral.get(0);
-        Var zeroVar = createConstVar(zeroLiteral);
+        Var zeroVar = varManager.createConstVar(zeroLiteral);
         addStatement(new AssignLiteral(zeroVar, zeroLiteral), ctx);
         return zeroVar;
     }
@@ -421,22 +330,10 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
 
     // ==================== Helper Methods - Statement Addition ====================
 
-    private void addStatement(Stmt stmt, ToyCParser.StmtContext ctx) {
-        if (ctx != null && ctx.getStart() != null) {
-            stmt.setLineNumber(ctx.getStart().getLine());
-        }
-        stmts.add(stmt);
-    }
-
     private void addStatement(Stmt stmt, ParserRuleContext ctx) {
         if (ctx != null && ctx.getStart() != null) {
             stmt.setLineNumber(ctx.getStart().getLine());
         }
-        stmts.add(stmt);
-    }
-
-    private void addStatement(Stmt stmt) {
-        // Generated statements keep default -1 line number
         stmts.add(stmt);
     }
 
@@ -560,13 +457,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
             return true;
         }
 
-        // Last statement in function - keep if targeted
-        if (index == stmts.size() - 1) {
-            return false;
-        }
-
-        // Can be removed if followed by another statement
-        return true;
+        return index != stmts.size() - 1;
     }
 
     private void removeNops(List<Stmt> nopsToRemove) {
@@ -597,7 +488,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
     // ==================== Complex Control Flow Generation ====================
 
     private RValue generateLogicalAnd(ToyCParser.ExpContext ctx) {
-        Var resultVar = createTemp();
+        Var resultVar = varManager.createTemp();
 
         // Evaluate left operand
         RValue leftExp = visit(ctx.exp(0));
@@ -605,16 +496,16 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         ConditionExp leftCondition = createConditionFromVar(leftVar, ctx);
 
         // Control flow labels
-        Stmt setFalse = createNopPlaceholder();
-        Stmt evaluateRight = createNopPlaceholder();
-        Stmt setTrueResult = createNopPlaceholder();
-        Stmt afterAnd = createNopPlaceholder();
+        Stmt setFalse = new Nop();
+        Stmt evaluateRight = new Nop();
+        Stmt setTrueResult = new Nop();
+        Stmt afterAnd = new Nop();
 
         // if (left) goto evaluateRight; else goto setFalse
         generateConditionalJump(leftCondition, evaluateRight, setFalse, ctx);
 
         // Evaluate right operand
-        addStatement(evaluateRight);
+        addStatement(evaluateRight, ctx);
         RValue rightExp = visit(ctx.exp(1));
         Var rightVar = convertToVar(rightExp, ctx);
         ConditionExp rightCondition = createConditionFromVar(rightVar, ctx);
@@ -623,20 +514,20 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         generateConditionalJump(rightCondition, setTrueResult, setFalse, ctx);
 
         // Set result = 1
-        addStatement(setTrueResult);
+        addStatement(setTrueResult, ctx);
         assignBooleanValue(resultVar, true, ctx);
         generateGoto(afterAnd, ctx);
 
         // Set result = 0
-        addStatement(setFalse);
+        addStatement(setFalse, ctx);
         assignBooleanValue(resultVar, false, ctx);
 
-        addStatement(afterAnd);
+        addStatement(afterAnd, ctx);
         return resultVar;
     }
 
     private RValue generateLogicalOr(ToyCParser.ExpContext ctx) {
-        Var resultVar = createTemp();
+        Var resultVar = varManager.createTemp();
 
         // Evaluate left operand
         RValue leftExp = visit(ctx.exp(0));
@@ -644,10 +535,9 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         ConditionExp leftCondition = createConditionFromVar(leftVar, ctx);
 
         // Control flow labels
-        Stmt setTrue = createNopPlaceholder();
-        Stmt evaluateRight = createNopPlaceholder();
-        Stmt setFalse = createNopPlaceholder();
-        Stmt afterOr = createNopPlaceholder();
+        Stmt setTrue = new Nop();
+        Stmt setFalse = new Nop();
+        Stmt afterOr = new Nop();
 
         // if (left) goto setTrue; else evaluate right
         If ifLeftTrue = new If(leftCondition);
@@ -663,15 +553,15 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         generateConditionalJump(rightCondition, setTrue, setFalse, ctx);
 
         // Set result = 1
-        addStatement(setTrue);
+        addStatement(setTrue, ctx);
         assignBooleanValue(resultVar, true, ctx);
         generateGoto(afterOr, ctx);
 
         // Set result = 0
-        addStatement(setFalse);
+        addStatement(setFalse, ctx);
         assignBooleanValue(resultVar, false, ctx);
 
-        addStatement(afterOr);
+        addStatement(afterOr, ctx);
         return resultVar;
     }
 
@@ -698,79 +588,25 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
 
     private void assignBooleanValue(Var target, boolean value, ParserRuleContext ctx) {
         IntLiteral literal = IntLiteral.get(value ? 1 : 0);
-        Var constVar = createConstVar(literal);
+        Var constVar = varManager.createConstVar(literal);
         addStatement(new AssignLiteral(constVar, literal), ctx);
         addStatement(new Copy(target, constVar), ctx);
     }
 
-    // ==================== Initialization and Finalization ====================
 
-    private void initializeFunctionContext(Function function) {
-        this.currentFunction = function;
-        resetFunctionState();
-    }
-
-    private void initializeFunctionState() {
-        resetFunctionState();
-        enterScope();
-    }
-
-    private void resetFunctionState() {
-        stmts.clear();
-        scopeStack.clear();
-        variableCounters.clear();
-        resetCounters();
-    }
-
-    private void resetCounters() {
-        varCounter = 0;
-        tempCounter = 0;
-        constCounter = 0;
-    }
-
-    private List<Var> createParameters() {
-        List<Var> params = new ArrayList<>();
-        for (int i = 0; i < currentFunction.getParamCount(); i++) {
-            String paramName = currentFunction.getParamName(i);
-            if (paramName == null) {
-                paramName = PARAM_PREFIX + i;
-            }
-            Var param = new Var(currentFunction, paramName, currentFunction.getParamType(i), i);
-            params.add(param);
-        }
-        return params;
-    }
-
-    private void registerParameters(List<Var> params) {
-        for (Var param : params) {
-            defineVariable(param.getName(), param);
-        }
-    }
-
-    private List<Var> createAndRegisterParameters(ToyCParser.FuncDefContext ctx) {
-        List<Var> params = new ArrayList<>();
-
+    private void addParameters(ToyCParser.FuncDefContext ctx) {
         if (ctx.funcFParams() != null) {
             List<ToyCParser.FuncFParamContext> paramContexts = ctx.funcFParams().funcFParam();
-            for (int i = 0; i < paramContexts.size(); i++) {
-                String paramName = paramContexts.get(i).IDENT().getText();
-                Var param = new Var(currentFunction, paramName, IntType.INT, i);
+            for (ToyCParser.FuncFParamContext paramContext : paramContexts) {
+                String paramName = paramContext.IDENT().getText();
+                Var param = varManager.createLocalVariable(paramName);
                 params.add(param);
-                defineVariable(paramName, param);
+                varManager.defineVariable(paramName, param);
             }
         }
-
-        return params;
     }
 
-    private IR createIR(List<Var> params) {
-        Set<Var> returnVars = new HashSet<>();
-        List<Var> allVars = collectAllVariables(params);
-
-        return new DefaultIR(currentFunction, params, returnVars, allVars, stmts);
-    }
-
-    private IR finalizeIR(List<Var> params) {
+    private IR finalizeIR() {
         // Apply optimizations
         optimizeJumps();
         eliminateRedundantNops();
@@ -778,112 +614,13 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         // Set statement indices
         assignStatementIndices();
 
-        // Create final IR
-        Set<Var> returnVars = new HashSet<>();
-        List<Var> allVars = collectAllVariables(params);
-
-        return new DefaultIR(currentFunction, params, returnVars, allVars, stmts);
+        return new DefaultIR(function, params, returnVars, varManager.getVars(), stmts);
     }
 
     private void assignStatementIndices() {
         for (int i = 0; i < stmts.size(); i++) {
             stmts.get(i).setIndex(i);
         }
-    }
-
-    private List<Var> collectAllVariables(List<Var> params) {
-        List<Var> allVars = new ArrayList<>(params);
-
-        // Add local variables (excluding parameters)
-        Set<String> paramNames = new HashSet<>();
-        for (Var param : params) {
-            paramNames.add(param.getName());
-        }
-
-        for (Map<String, Var> scope : scopeStack) {
-            for (Var var : scope.values()) {
-                if (!paramNames.contains(var.getName())) {
-                    allVars.add(var);
-                }
-            }
-        }
-
-        return allVars;
-    }
-
-    // ==================== Utility Methods ====================
-
-    private void collectAllFunctionSignatures(ToyCParser.CompUnitContext ctx) {
-        for (ToyCParser.FuncDefContext funcDef : ctx.funcDef()) {
-            collectFunctionSignature(funcDef);
-        }
-    }
-
-    private void buildAllFunctions(ToyCParser.CompUnitContext ctx) {
-        for (ToyCParser.FuncDefContext funcDef : ctx.funcDef()) {
-            visit(funcDef);
-        }
-    }
-
-    private void collectFunctionSignature(ToyCParser.FuncDefContext ctx) {
-        String funcName = ctx.funcName().IDENT().getText();
-        Type returnType = isVoidFunction(ctx) ? VoidType.VOID : IntType.INT;
-
-        List<Type> paramTypes = new ArrayList<>();
-        List<String> paramNames = new ArrayList<>();
-
-        if (ctx.funcFParams() != null) {
-            for (ToyCParser.FuncFParamContext param : ctx.funcFParams().funcFParam()) {
-                paramTypes.add(IntType.INT);
-                paramNames.add(param.IDENT().getText());
-            }
-        }
-
-        Function function = new Function(funcName, paramTypes, returnType, paramNames);
-        functionMap.put(funcName, function);
-    }
-
-    private void buildAllInParallel(Program program) {
-        int nThreads = Runtime.getRuntime().availableProcessors();
-        List<List<Function>> functionGroups = distributeFunctions(program.allFunctions().toList(), nThreads);
-
-        ExecutorService executor = Executors.newFixedThreadPool(nThreads);
-
-        for (List<Function> group : functionGroups) {
-            executor.execute(() -> group.forEach(Function::getIR));
-        }
-
-        shutdownExecutor(executor);
-    }
-
-    private List<List<Function>> distributeFunctions(List<Function> functions, int nGroups) {
-        List<List<Function>> groups = new ArrayList<>();
-        for (int i = 0; i < nGroups; i++) {
-            groups.add(new ArrayList<>());
-        }
-
-        for (int i = 0; i < functions.size(); i++) {
-            groups.get(i % nGroups).add(functions.get(i));
-        }
-
-        return groups;
-    }
-
-    private void shutdownExecutor(ExecutorService executor) {
-        executor.shutdown();
-        try {
-            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private Function getFunctionOrError(String funcName) {
-        Function function = functionMap.get(funcName);
-        if (function == null) {
-            throw new RuntimeException("Undefined function: " + funcName);
-        }
-        return function;
     }
 
     private List<Var> prepareCallArguments(ToyCParser.ExpContext ctx) {
@@ -901,36 +638,12 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
     }
 
     private void ensureProperReturn(ToyCParser.FuncDefContext ctx) {
-        if (isVoidFunction(ctx) && !endsWithReturn()) {
+        if (ctx.funcType().VOID() != null && !stmts.isEmpty() && stmts.getLast() instanceof Return) {
             addStatement(new Return(null), ctx);
         }
     }
 
-    private boolean endsWithReturn() {
-        return !stmts.isEmpty() && stmts.getLast() instanceof Return;
-    }
-
-    private boolean isVoidFunction(ToyCParser.FuncDefContext ctx) {
-        return ctx.funcType().VOID() != null;
-    }
-
     // ==================== Statement Type Checks ====================
-
-    private boolean isAssignment(ToyCParser.StmtContext ctx) {
-        return ctx.lVal() != null && ctx.ASSIGN() != null;
-    }
-
-    private boolean isExpressionStatement(ToyCParser.StmtContext ctx) {
-        return ctx.exp() != null && ctx.SEMICOLON() != null;
-    }
-
-    private boolean isParenthesizedExpression(ToyCParser.ExpContext ctx) {
-        return ctx.L_PAREN() != null && ctx.exp(0) != null;
-    }
-
-    private boolean isBinaryOperation(ToyCParser.ExpContext ctx) {
-        return ctx.exp().size() == 2;
-    }
 
     private boolean canOptimizeIfStatement(ToyCParser.StmtContext ctx) {
         return isSimpleBreakOrContinue(ctx.stmt(0)) && ctx.stmt().size() == 1;
@@ -962,8 +675,6 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         return false;
     }
 
-    // ==================== Specific Statement Handlers ====================
-
     private RValue handleAssignment(ToyCParser.StmtContext ctx) {
         Var target = (Var) visit(ctx.lVal());
         RValue source = visit(ctx.exp());
@@ -977,6 +688,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         if (ctx.exp() != null) {
             RValue exp = visit(ctx.exp());
             returnValue = convertToVar(exp, ctx);
+            returnVars.add(returnValue);
         }
 
         addStatement(new Return(returnValue), ctx);
@@ -987,7 +699,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         RValue exp = visit(ctx.exp());
 
         if (exp instanceof CallExp callExp) {
-            addStatement(new Call(currentFunction, callExp), ctx);
+            addStatement(new Call(function, callExp), ctx);
         }
 
         return null;
@@ -1036,8 +748,8 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
     }
 
     private RValue generateStandardIf(ConditionExp condition, ToyCParser.StmtContext ctx) {
-        Stmt thenStart = createNopPlaceholder();
-        Stmt afterIf = createNopPlaceholder();
+        Stmt thenStart = new Nop();
+        Stmt afterIf = new Nop();
 
         // if (condition) goto thenStart
         If ifStmt = new If(condition);
@@ -1059,7 +771,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         boolean thenReturns = endsWithReturn(ctx.stmt(0));
         boolean elseReturns = endsWithReturn(ctx.stmt(1));
 
-        Stmt elseStart = createNopPlaceholder();
+        Stmt elseStart = new Nop();
 
         // goto else
         Goto gotoElse = new Goto();
@@ -1067,7 +779,7 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         addStatement(gotoElse, ctx);
 
         // Then branch
-        addStatement(thenStart);
+        addStatement(thenStart, ctx);
         visit(ctx.stmt(0));
 
         if (!thenReturns) {
@@ -1075,12 +787,12 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         }
 
         // Else branch
-        addStatement(elseStart);
+        addStatement(elseStart, ctx);
         visit(ctx.stmt(1));
 
         // Add afterIf if needed
         if (!thenReturns || !elseReturns) {
-            addStatement(afterIf);
+            addStatement(afterIf, ctx);
         }
     }
 
@@ -1091,16 +803,16 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         addStatement(gotoEnd, ctx);
 
         // Then branch
-        addStatement(thenStart);
+        addStatement(thenStart, ctx);
         visit(ctx.stmt(0));
 
         // Always add afterIf for single-branch if
-        addStatement(afterIf);
+        addStatement(afterIf, ctx);
     }
 
     private void generateWhileLoop(ToyCParser.StmtContext ctx, Stmt conditionStart, Stmt bodyStart, Stmt afterWhile) {
         // Condition evaluation
-        addStatement(conditionStart);
+        addStatement(conditionStart, ctx);
         RValue conditionExp = visit(ctx.exp());
         ConditionExp condition = createCondition(conditionExp, ctx);
 
@@ -1113,17 +825,17 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         generateGoto(afterWhile, ctx);
 
         // Body
-        addStatement(bodyStart);
+        addStatement(bodyStart, ctx);
         visit(ctx.stmt(0));
 
         // goto conditionStart
         generateGoto(conditionStart, ctx);
 
         // After while
-        addStatement(afterWhile);
+        addStatement(afterWhile, ctx);
     }
 
-    private RValue generateBinaryOperation(ToyCParser.ExpContext ctx) {
+    private RValue getBinaryOperation(ToyCParser.ExpContext ctx) {
         RValue left = visit(ctx.exp(0));
         RValue right = visit(ctx.exp(1));
 
@@ -1159,5 +871,46 @@ public class IRBuilder extends ToyCParserBaseVisitor<RValue> implements toyc.ir.
         }
 
         throw new RuntimeException("Unknown binary operator");
+    }
+
+    private void buildAllInParallel(Program program) {
+        int nThreads = Runtime.getRuntime().availableProcessors();
+        List<List<Function>> functionGroups = distributeFunctions(program.allFunctions().toList(), nThreads);
+
+        ExecutorService executor = Executors.newFixedThreadPool(nThreads);
+
+        for (List<Function> group : functionGroups) {
+            executor.execute(() -> group.forEach(Function::getIR));
+        }
+
+        shutdownExecutor(executor);
+    }
+
+    private List<List<Function>> distributeFunctions(List<Function> functions, int nGroups) {
+        List<List<Function>> groups = new ArrayList<>();
+        for (int i = 0; i < nGroups; i++) {
+            groups.add(new ArrayList<>());
+        }
+
+        for (int i = 0; i < functions.size(); i++) {
+            groups.get(i % nGroups).add(functions.get(i));
+        }
+
+        return groups;
+    }
+
+    private void shutdownExecutor(ExecutorService executor) {
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    System.err.println("Executor did not terminate gracefully");
+                }
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 }

@@ -56,7 +56,7 @@ public final class CallGraphs {
                     .sorted()
                     .forEach(out::println);
         } catch (FileNotFoundException e) {
-            logger.warn("Failed to dump reachable methods to " + outFile, e);
+            logger.warn("Failed to dump reachable methods to {}", outFile, e);
         }
     }
 

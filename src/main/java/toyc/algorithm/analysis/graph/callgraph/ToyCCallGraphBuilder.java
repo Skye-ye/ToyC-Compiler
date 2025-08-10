@@ -27,13 +27,13 @@ public class ToyCCallGraphBuilder implements CGBuilder<Call, Function> {
     private CallGraph<Call, Function> buildCallGraph(Function entry) {
         DefaultCallGraph callGraph = new DefaultCallGraph();
         callGraph.addEntryFunction(entry);
-        
+
         Queue<Function> workList = new ArrayDeque<>();
         workList.add(entry);
-        
+
         while (!workList.isEmpty()) {
             Function function = workList.poll();
-            
+
             // Always process call sites, even if the function was already reachable
             callGraph.addReachableFunction(function);
             Set<Call> callSites = callGraph.getCallSitesIn(function);
@@ -49,10 +49,10 @@ public class ToyCCallGraphBuilder implements CGBuilder<Call, Function> {
                     }
             );
         }
-        
-        logger.info("Call graph built with {} functions and {} call edges", 
-                   callGraph.getNumberOfFunctions(), callGraph.getNumberOfEdges());
-        
+
+        logger.info("Call graph built with {} functions and {} call edges",
+                callGraph.getNumberOfFunctions(), callGraph.getNumberOfEdges());
+
         return callGraph;
     }
 }

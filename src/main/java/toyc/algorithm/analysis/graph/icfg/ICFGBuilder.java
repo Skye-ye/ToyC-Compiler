@@ -55,11 +55,11 @@ public class ICFGBuilder extends ProgramAnalysis<ICFG<Function, Stmt>> {
                 .setGlobalNodeAttributes(DotAttributes.of("shape", "box",
                         "style", "filled", "color", "\".3 .2 1.0\""))
                 .setEdgeAttributer(e -> switch (e) {
-                    case CallEdge ignored ->
+                    case CallEdge<Stmt> ignored ->
                             DotAttributes.of("style", "dashed", "color", "blue");
-                    case ReturnEdge ignored ->
+                    case ReturnEdge<Stmt> ignored ->
                             DotAttributes.of("style", "dashed", "color", "red");
-                    case CallToReturnEdge ignored ->
+                    case CallToReturnEdge<Stmt> ignored ->
                             DotAttributes.of("style", "dashed");
                     case null, default -> DotAttributes.of();
                 })
