@@ -157,10 +157,6 @@ public class MutableIR extends AbstractResultHolder implements IR {
         return getStmt(i);
     }
 
-    public int getSize() {
-        return stmts.size();
-    }
-
     private class VarIndexer implements Indexer<Var>, Serializable {
         @Override
         public int getIndex(Var v) {

@@ -64,6 +64,16 @@ public class Function {
         return ir;
     }
 
+    /**
+     * Sets the IR for this function.
+     * This method should only be used in Optimization
+     *
+     * @param ir the IR to set
+     */
+    public void setIR(IR ir) {
+        this.ir = ir;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();

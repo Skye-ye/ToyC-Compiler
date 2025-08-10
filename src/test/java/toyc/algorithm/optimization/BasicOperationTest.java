@@ -1,15 +1,13 @@
 package toyc.algorithm.optimization;
 
 import toyc.ir.*;
-import toyc.ir.stmt.If;
-import toyc.ir.stmt.Nop;
 import toyc.ir.stmt.Stmt;
 
 public class BasicOperationTest {
-    AbstractOperation op;
+    IROperation op;
 
     public BasicOperationTest(IR ir) {
-        this.op = new AbstractOperation(ir);
+        this.op = new IROperation(ir);
     }
 
     public IR test() {
@@ -33,6 +31,7 @@ public class BasicOperationTest {
     public void insertTest() {
         System.out.println("\n=== 在第1位置插入第0条语句 ===");
         Stmt stmt = op.getStmt(0);
+        assert stmt != null;
         op.insertByOrigin(stmt, 1);
         IRPrinter.print(op.getCurrentIR(), System.out);
     }

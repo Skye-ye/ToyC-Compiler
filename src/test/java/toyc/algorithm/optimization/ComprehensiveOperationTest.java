@@ -7,10 +7,10 @@ import toyc.ir.stmt.*;
  * 全面测试AbstractOperation的功能，覆盖未测试的方法和边缘情况
  */
 public class ComprehensiveOperationTest {
-    private final AbstractOperation op;
+    private final IROperation op;
 
     public ComprehensiveOperationTest(IR ir) {
-        this.op = new AbstractOperation(ir);
+        this.op = new IROperation(ir);
     }
 
     public IR testAll() {
