@@ -39,6 +39,17 @@ public class ConstantFolding extends Optimization {
     private void foldStatement(Stmt stmt, CPFact fact) {
         if (stmt instanceof Return returnStmt) {
             foldReturn(returnStmt, fact);
+        } else if (stmt instanceof AssignStmt assignStmt) {
+            if (assignStmt.getLValue() instanceof Var var) {
+                Value value = fact.get(var);
+                if (value.isConstant()) {
+                    // Constant assignment, replace the statement with AssignLiteral
+                    int constValue = value.getConstant();
+                    AssignLiteral assignLiteral = new AssignLiteral(var,
+                            IntLiteral.get(constValue));
+                    operation.replace(assignStmt, assignLiteral);
+                }
+            }
         }
     }
 

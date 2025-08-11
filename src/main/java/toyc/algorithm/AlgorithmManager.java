@@ -77,7 +77,7 @@ public class AlgorithmManager {
         // execute analyses
         plan.analyses().forEach(config -> {
             Algorithm algorithm = Timer.runAndCount(
-                    () -> runAnalysis(config), config.getId(), Level.INFO);
+                    () -> runAlgorithm(config), config.getId(), Level.INFO);
             if (!keepAllResults) {
                 executedAnalyses.add(algorithm);
                 clearUnusedResults(algorithm);
@@ -85,7 +85,7 @@ public class AlgorithmManager {
         });
     }
 
-    private Algorithm runAnalysis(AlgorithmConfig config) {
+    private Algorithm runAlgorithm(AlgorithmConfig config) {
         Algorithm algorithm;
         // Create analysis instance
         try {

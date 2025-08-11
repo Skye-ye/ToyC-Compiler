@@ -27,15 +27,14 @@ public class Compiler {
             LoggerConfigs.setOutput(options.getOutputDir());
             Plan plan = processConfigs(options);
             if (plan.analyses().isEmpty()) {
-                logger.info("No analyses are specified, printing IR");
-                buildWorld(options, plan.analyses());
-                printIR();
+                logger.info("No analyses are specified");
                 System.exit(0);
             }
             buildWorld(options, plan.analyses());
             executePlan(plan);
         }, "ToyC Compiler");
         LoggerConfigs.reconfigure();
+        printIR();
     }
 
     private static Options processArgs(String... args) {
@@ -110,7 +109,11 @@ public class Compiler {
     }
 
     private static void executePlan(Plan plan) {
-        new AlgorithmManager(plan).execute();
+        AlgorithmManager am = new AlgorithmManager(plan);
+        // TODO: In real use, we should check whether IR has changed
+        for (int i = 0; i < 10; i++) {
+            am.execute();
+        }
     }
 
     private static void printIR() {
