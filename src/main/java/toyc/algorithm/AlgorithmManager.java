@@ -136,14 +136,16 @@ public class AlgorithmManager {
                 });
     }
 
+    // Run optimization sequentially to avoid concurrent modifications
+    // TODO: consider parallel optimizations
     private void runOptimization(Optimization optimization) {
-        getFunctionScope()
-                .parallelStream()
-                .forEach(m -> {
-                    IR ir = m.getIR();
-                    IR optimizedIR = optimization.optimize(ir);
-                    m.setIR(optimizedIR);
-                });
+        List<Function> functions = getFunctionScope();
+
+        for (Function function : functions) {
+            IR ir = function.getIR();
+            IR optimizedIR = optimization.optimize(ir);
+            function.setIR(optimizedIR);
+        }
     }
 
     private List<Function> getFunctionScope() {
