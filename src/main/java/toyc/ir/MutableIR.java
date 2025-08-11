@@ -15,20 +15,18 @@ public class MutableIR {
 
     private final Function function;
     private final List<Var> params; // Immutable
-    private final List<Var> vars; // Mutable
-    private Set<Var> returnVars; // Mutable
     private final List<Stmt> stmts; // Mutable
 
     public MutableIR(IR ir) {
         this.function = ir.getFunction();
         this.params = List.copyOf(ir.getParams());
-        this.vars = List.copyOf(ir.getVars());
         this.stmts = new LinkedList<>(ir.getStmts());
     }
 
     public IR toImmutableIR() {
         reindexStmts();
-        collectReturnVars();
+        List<Var> vars = collectVars();
+        Set<Var> returnVars = collectReturnVars();
         return new DefaultIR(function, params, returnVars, vars, stmts);
     }
 
@@ -95,8 +93,37 @@ public class MutableIR {
         }
     }
 
-    private void collectReturnVars() {
-        returnVars = new HashSet<>();
+    /**
+     * Collect all variables used in the IR.
+     */
+    private List<Var> collectVars() {
+        Set<Var> vars = new HashSet<>(params);
+        
+        // Collect variables from all statements
+        for (Stmt stmt : stmts) {
+            // Add defined variables (lvalues)
+            stmt.getDef().ifPresent(def -> {
+                if (def instanceof Var var) {
+                    vars.add(var);
+                }
+            });
+            
+            // Add used variables (rvalues)
+            for (var use : stmt.getUses()) {
+                if (use instanceof Var var) {
+                    vars.add(var);
+                }
+            }
+        }
+        
+        return new ArrayList<>(vars);
+    }
+
+    /**
+     * Collect return variables used in the IR.
+     */
+    private Set<Var> collectReturnVars() {
+        Set<Var> returnVars = new HashSet<>();
         for (Stmt stmt : stmts) {
             if (stmt instanceof Return returnStmt) {
                 Var retVar = returnStmt.getValue();
@@ -105,5 +132,6 @@ public class MutableIR {
                 }
             }
         }
+        return returnVars;
     }
 }

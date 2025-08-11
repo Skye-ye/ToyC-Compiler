@@ -104,7 +104,7 @@
   id: process-result
   modification: false
   options:
-    analyses: [ inter-const-prop ]
+    analyses: [ dead-code ]
     action: dump # | compare
     file: null
     log-mismatches: false
