@@ -1,6 +1,8 @@
 package toyc.ir;
 
 import toyc.ir.exp.Var;
+import toyc.ir.stmt.Goto;
+import toyc.ir.stmt.If;
 import toyc.ir.stmt.Return;
 import toyc.ir.stmt.Stmt;
 import toyc.language.Function;
@@ -82,6 +84,31 @@ public class MutableIR {
             }
         }
         return false; // Statement not found
+    }
+
+    public Stmt getNextStmt(Stmt currentStmt) {
+        int index = stmts.indexOf(currentStmt);
+        if (index != -1 && index < stmts.size() - 1) {
+            return stmts.get(index + 1);
+        }
+        return null;
+    }
+
+    public Set<Stmt> getSourceStmts(Stmt stmt) {
+        Set<Stmt> sourceStmts = new HashSet<>();
+        for (Stmt s : stmts) {
+            if (s instanceof If ifStmt) {
+                if(ifStmt.getTarget() == stmt){
+                    sourceStmts.add(s);
+                }
+            }
+            else if (s instanceof Goto gotoStmt) {
+                if(gotoStmt.getTarget() == stmt){
+                    sourceStmts.add(s);
+                }
+            }
+        }
+        return sourceStmts;
     }
 
     /**

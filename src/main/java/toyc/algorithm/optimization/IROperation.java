@@ -5,6 +5,7 @@ import toyc.ir.IR;
 import toyc.ir.stmt.*;
 
 import javax.annotation.Nonnull;
+import java.util.Set;
 
 /**
  * Handles linear optimization operations on IR with proper index mapping.
@@ -48,6 +49,25 @@ public class IROperation {
      * @return true if the removal was successful, false otherwise
      */
     public boolean remove(@Nonnull Stmt stmt) {
+        // check whether the stmt is target of other stmts
+        Set<Stmt> sourceStmts = ir.getSourceStmts(stmt);
+        if(!sourceStmts.isEmpty()){
+            Stmt nextStmt = ir.getNextStmt(stmt);
+            if (nextStmt != null) {
+                for (Stmt sourceStmt : sourceStmts) {
+                    if (sourceStmt instanceof Goto gotoStmt) {
+                        if (gotoStmt.getTarget() == stmt) {
+                            gotoStmt.setTarget(nextStmt);
+                        }
+                    }
+                    else if (sourceStmt instanceof If ifStmt) {
+                        if (ifStmt.getTarget() == stmt) {
+                            ifStmt.setTarget(nextStmt);
+                        }
+                    }
+                }
+            }
+        }
         return ir.removeStmt(stmt);
     }
 
@@ -58,6 +78,23 @@ public class IROperation {
      * @return true if the replacement was successful, false otherwise
      */
     public boolean replace(@Nonnull Stmt stmt, @Nonnull Stmt newStmt) {
+        Set<Stmt> sourceStmts = ir.getSourceStmts(stmt);
+        if(!sourceStmts.isEmpty()){
+            if (newStmt != null) {
+                for (Stmt sourceStmt : sourceStmts) {
+                    if (sourceStmt instanceof Goto gotoStmt) {
+                        if (gotoStmt.getTarget() == stmt) {
+                            gotoStmt.setTarget(newStmt);
+                        }
+                    }
+                    else if (sourceStmt instanceof If ifStmt) {
+                        if (ifStmt.getTarget() == stmt) {
+                            ifStmt.setTarget(newStmt);
+                        }
+                    }
+                }
+            }
+        }
         newStmt.setLineNumber(stmt.getLineNumber());
         return ir.replaceStmt(stmt, newStmt);
     }
