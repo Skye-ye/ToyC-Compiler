@@ -19,7 +19,6 @@ public class VarManager {
 
     private final Function function;
 
-    private int varCounter = 0;
     private int tempCounter = 0;
     private int constCounter = 0;
     private int varIndex = 0;
@@ -66,7 +65,7 @@ public class VarManager {
      * @return A new local variable with the specified name.
      */
     public Var createLocalVariable(String name) {
-        Var localVar = new Var(function, name, IntType.INT, varCounter++);
+        Var localVar = new Var(function, name, IntType.INT, varIndex++);
         vars.add(localVar);
         return localVar;
     }

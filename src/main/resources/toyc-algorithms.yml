@@ -104,7 +104,7 @@
   id: process-result
   modification: false
   options:
-    analyses: [ dead-code ]
+    analyses: [ live-var ]
     action: dump # | compare
     file: null
     log-mismatches: false

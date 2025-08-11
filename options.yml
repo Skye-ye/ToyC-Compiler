@@ -9,9 +9,7 @@ scope: REACHABLE
 planFile: null
 onlyGenPlan: false
 analyses:
-  const-fold: ""
-  inter-const-prop: ""
-  dead-code: ""
+  live-var: ""
   process-result: ""
 keepResult:
   - $KEEP-ALL
