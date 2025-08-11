@@ -7,6 +7,8 @@ import toyc.ir.stmt.If;
 import toyc.ir.stmt.Stmt;
 
 import javax.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -81,6 +83,7 @@ public class IROperation {
      */
     @Nonnull
     public IR getIR() {
+        optimizeControlFlow();
         return ir.toImmutableIR();
     }
 
@@ -103,6 +106,40 @@ public class IROperation {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Optimize control flow by removing unnecessary statements.
+     * Specifically, it removes If and Goto statements that directly lead to the next statement.
+     */
+    private void optimizeControlFlow() {
+        List<Stmt> stmts = ir.getStmts();
+        List<Stmt> toRemove = new ArrayList<>();
+
+        for (Stmt stmt : stmts) {
+            if (stmt instanceof If ifStmt) {
+                Stmt nextStmt = ir.getNextStmt(stmt);
+                Stmt target = ifStmt.getTarget();
+                assert target != null;
+                assert nextStmt != null;
+                if (target == nextStmt) {
+                    toRemove.add(stmt);
+                }
+            } else if (stmt instanceof Goto gotoStmt) {
+                Stmt nextStmt = ir.getNextStmt(stmt);
+                Stmt target = gotoStmt.getTarget();
+                assert target != null;
+                assert nextStmt != null;
+                if (target == nextStmt) {
+                    toRemove.add(stmt);
+                }
+            }
+        }
+
+        // Remove all marked statements
+        for (Stmt stmt : toRemove) {
+            remove(stmt);
         }
     }
 }

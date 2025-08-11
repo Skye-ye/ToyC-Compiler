@@ -25,6 +25,7 @@ import java.util.*;
 /**
  * Detects dead code in an IR.
  */
+// TODO: Consider using the result of inter-const-prop
 public class DeadCodeDetection extends FunctionAnalysis<Set<Stmt>> {
 
     public static final String ID = "dead-code";

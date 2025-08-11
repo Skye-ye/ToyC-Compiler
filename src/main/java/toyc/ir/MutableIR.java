@@ -139,6 +139,13 @@ public class MutableIR {
     }
 
     /**
+     * Get a read-only view of the stmts
+     */
+    public List<Stmt> getStmts() {
+        return Collections.unmodifiableList(stmts);
+    }
+
+    /**
      * Re-index all statements
      */
     private void reindexStmts() {

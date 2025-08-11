@@ -16,6 +16,7 @@ import toyc.ir.stmt.Stmt;
 /**
  * Implementation of constant propagation for int values.
  */
+// TODO: consider branch refinement
 public class ConstantPropagation extends AnalysisDriver<Stmt, CPFact> {
 
     public static final String ID = "const-prop";

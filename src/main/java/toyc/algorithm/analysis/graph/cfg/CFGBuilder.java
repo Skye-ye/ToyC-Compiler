@@ -30,16 +30,6 @@ public class CFGBuilder extends FunctionAnalysis<CFG<Stmt>> {
         logger.info("Dumping CFGs in {}", dumpDir.getAbsolutePath());
     }
 
-    @Override
-    public CFG<Stmt> analyze(IR ir) {
-        StmtCFG cfg = new StmtCFG(ir);
-        cfg.setEntry(new Nop());
-        cfg.setExit(new Nop());
-        buildNormalEdges(cfg);
-        CFGDumper.dumpDotFile(cfg, dumpDir);
-        return cfg;
-    }
-
     private static void buildNormalEdges(StmtCFG cfg) {
         IR ir = cfg.getIR();
         cfg.addEdge(new CFGEdge<>(CFGEdge.Kind.ENTRY, cfg.getEntry(), ir.getStmt(0)));
@@ -62,5 +52,15 @@ public class CFGBuilder extends FunctionAnalysis<CFG<Stmt>> {
                         curr, ir.getStmt(i + 1)));
             }
         }
+    }
+
+    @Override
+    public CFG<Stmt> analyze(IR ir) {
+        StmtCFG cfg = new StmtCFG(ir);
+        cfg.setEntry(new Nop());
+        cfg.setExit(new Nop());
+        buildNormalEdges(cfg);
+        CFGDumper.dumpDotFile(cfg, dumpDir);
+        return cfg;
     }
 }
