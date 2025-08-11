@@ -1,8 +1,10 @@
 package toyc.algorithm.optimization;
 
-import toyc.ir.MutableIR;
 import toyc.ir.IR;
-import toyc.ir.stmt.*;
+import toyc.ir.MutableIR;
+import toyc.ir.stmt.Goto;
+import toyc.ir.stmt.If;
+import toyc.ir.stmt.Stmt;
 
 import javax.annotation.Nonnull;
 import java.util.Set;
@@ -24,79 +26,54 @@ public class IROperation {
 
     /**
      * Insert a statement before the specified {@code stmt} in the IR.
-     * @param stmt the statement before which to insert
+     *
+     * @param stmt    the statement before which to insert
      * @param newStmt the statement to insert
-     * @return true if the insertion was successful, false otherwise
      */
-    public boolean insertBefore(@Nonnull Stmt stmt, @Nonnull Stmt newStmt) {
+    public void insertBefore(@Nonnull Stmt stmt, @Nonnull Stmt newStmt) {
         newStmt.setLineNumber(stmt.getLineNumber());
-        return ir.insertBefore(stmt, newStmt);
+        ir.insertBefore(stmt, newStmt);
     }
 
     /**
      * Insert a statement after the specified {@code stmt} in the IR.
-     * @param stmt the statement after which to insert
+     *
+     * @param stmt    the statement after which to insert
      * @param newStmt the statement to insert
-     * @return true if the insertion was successful, false otherwise
      */
-    public boolean insertAfter(@Nonnull Stmt stmt, @Nonnull Stmt newStmt) {
-        return ir.insertAfter(stmt, newStmt);
+    public void insertAfter(@Nonnull Stmt stmt, @Nonnull Stmt newStmt) {
+        newStmt.setLineNumber(stmt.getLineNumber());
+        ir.insertAfter(stmt, newStmt);
     }
 
     /**
      * Remove the specified statement from the IR.
+     * If the statement to be removed is a target of other statements (e.g., Goto, If),
+     * it updates those statements to point to the next statement.
+     *
      * @param stmt the statement to remove
-     * @return true if the removal was successful, false otherwise
      */
-    public boolean remove(@Nonnull Stmt stmt) {
+    public void remove(@Nonnull Stmt stmt) {
         // check whether the stmt is target of other stmts
-        Set<Stmt> sourceStmts = ir.getSourceStmts(stmt);
-        if(!sourceStmts.isEmpty()){
-            Stmt nextStmt = ir.getNextStmt(stmt);
-            if (nextStmt != null) {
-                for (Stmt sourceStmt : sourceStmts) {
-                    if (sourceStmt instanceof Goto gotoStmt) {
-                        if (gotoStmt.getTarget() == stmt) {
-                            gotoStmt.setTarget(nextStmt);
-                        }
-                    }
-                    else if (sourceStmt instanceof If ifStmt) {
-                        if (ifStmt.getTarget() == stmt) {
-                            ifStmt.setTarget(nextStmt);
-                        }
-                    }
-                }
-            }
+        Stmt nextStmt = ir.getNextStmt(stmt);
+        if (nextStmt != null) {
+            updateTargets(stmt, nextStmt);
         }
-        return ir.removeStmt(stmt);
+        ir.removeStmt(stmt);
     }
 
     /**
      * Replace the specified statement with a new statement in the IR.
-     * @param stmt the statement to replace
+     * If the statement to be replaced is a target of other statements (e.g., Goto, If),
+     * it updates those statements to point to the new statement.
+     *
+     * @param stmt    the statement to replace
      * @param newStmt the new statement to insert
-     * @return true if the replacement was successful, false otherwise
      */
-    public boolean replace(@Nonnull Stmt stmt, @Nonnull Stmt newStmt) {
-        Set<Stmt> sourceStmts = ir.getSourceStmts(stmt);
-        if(!sourceStmts.isEmpty()){
-            if (newStmt != null) {
-                for (Stmt sourceStmt : sourceStmts) {
-                    if (sourceStmt instanceof Goto gotoStmt) {
-                        if (gotoStmt.getTarget() == stmt) {
-                            gotoStmt.setTarget(newStmt);
-                        }
-                    }
-                    else if (sourceStmt instanceof If ifStmt) {
-                        if (ifStmt.getTarget() == stmt) {
-                            ifStmt.setTarget(newStmt);
-                        }
-                    }
-                }
-            }
-        }
+    public void replace(@Nonnull Stmt stmt, @Nonnull Stmt newStmt) {
+        updateTargets(stmt, newStmt);
         newStmt.setLineNumber(stmt.getLineNumber());
-        return ir.replaceStmt(stmt, newStmt);
+        ir.replaceStmt(stmt, newStmt);
     }
 
     /**
@@ -105,5 +82,27 @@ public class IROperation {
     @Nonnull
     public IR getIR() {
         return ir.toImmutableIR();
+    }
+
+    /**
+     * Update the targets of statements that reference the old statement.
+     * @param oldStmt the old statement to be replaced
+     * @param newStmt the new statement to set as the target
+     */
+    private void updateTargets(@Nonnull Stmt oldStmt, @Nonnull Stmt newStmt) {
+        Set<Stmt> sourceStmts = ir.getPredecessors(oldStmt);
+        if (!sourceStmts.isEmpty()) {
+            for (Stmt sourceStmt : sourceStmts) {
+                if (sourceStmt instanceof Goto gotoStmt) {
+                    if (gotoStmt.getTarget() == oldStmt) {
+                        gotoStmt.setTarget(newStmt);
+                    }
+                } else if (sourceStmt instanceof If ifStmt) {
+                    if (ifStmt.getTarget() == oldStmt) {
+                        ifStmt.setTarget(newStmt);
+                    }
+                }
+            }
+        }
     }
 }

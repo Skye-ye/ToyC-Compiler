@@ -1,6 +1,6 @@
 optionsFile: null
 printHelp: false
-inputFile: src/test/resources/toyc/oj/19_many_arguments.tc
+inputFile: src/test/resources/toyc/oj/03_if_else.tc
 worldBuilderClass: toyc.frontend.ToyCWorldBuilder
 outputDir: output
 preBuildIR: false

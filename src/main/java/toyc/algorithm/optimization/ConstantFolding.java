@@ -39,7 +39,7 @@ public class ConstantFolding extends Optimization {
     private void foldStatement(Stmt stmt, CPFact fact) {
         if (stmt instanceof Return returnStmt) {
             foldReturn(returnStmt, fact);
-        } else if (stmt instanceof AssignStmt assignStmt) {
+        } else if (stmt instanceof AssignStmt<?, ?> assignStmt) {
             if (assignStmt.getLValue() instanceof Var var) {
                 Value value = fact.get(var);
                 if (value.isConstant()) {
@@ -64,8 +64,8 @@ public class ConstantFolding extends Optimization {
                         retVar.getType(), -1, IntLiteral.get(constValue));
                 Return newReturnStmt = new Return(constVar);
                 AssignLiteral assignStmt = new AssignLiteral(constVar, IntLiteral.get(constValue));
-                operation.replace(returnStmt, newReturnStmt);
-                operation.insertBefore(newReturnStmt, assignStmt);
+                operation.replace(returnStmt, assignStmt);
+                operation.insertAfter(assignStmt, newReturnStmt);
             }
         }
     }
