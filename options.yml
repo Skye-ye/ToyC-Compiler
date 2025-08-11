@@ -1,6 +1,6 @@
 optionsFile: null
 printHelp: false
-inputFile: src/test/resources/toyc/cse/test1.tc
+inputFile: src/test/resources/toyc/oj/19_many_arguments.tc
 worldBuilderClass: toyc.frontend.ToyCWorldBuilder
 outputDir: output
 preBuildIR: false
@@ -9,8 +9,7 @@ scope: REACHABLE
 planFile: null
 onlyGenPlan: false
 analyses:
-  common-subexp-eliminate: ""
-  const-prop: ""
-  process-result: ""
+  const-fold: ""
+  dead-code-elim: ""
 keepResult:
   - $KEEP-ALL

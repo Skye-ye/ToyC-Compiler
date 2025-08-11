@@ -8,49 +8,49 @@ import java.util.*;
 import static toyc.util.collection.Maps.newMap;
 
 /**
- * Manages a collection of {@link AnalysisConfig}.
+ * Manages a collection of {@link AlgorithmConfig}.
  */
 public class ConfigManager {
 
     /**
-     * Map from analysis id to corresponding AnalysisConfig.
+     * Map from analysis id to corresponding AlgorithmConfig.
      */
-    private final Map<String, AnalysisConfig> configs = Maps.newLinkedHashMap();
+    private final Map<String, AlgorithmConfig> configs = Maps.newLinkedHashMap();
 
     /**
-     * Map from AnalysisConfig to its required AnalysisConfigs.
+     * Map from AlgorithmConfig to its required AlgorithmConfigs.
      */
-    private final Map<AnalysisConfig, List<AnalysisConfig>> requires = newMap();
+    private final Map<AlgorithmConfig, List<AlgorithmConfig>> requires = newMap();
 
-    public ConfigManager(List<AnalysisConfig> configs) {
+    public ConfigManager(List<AlgorithmConfig> configs) {
         configs.forEach(this::addConfig);
     }
 
-    private void addConfig(AnalysisConfig config) {
+    private void addConfig(AlgorithmConfig config) {
         if (configs.containsKey(config.getId())) {
             throw new ConfigException("There are multiple analyses for the same id " +
-                    config.getId() + " in " + Configs.getAnalysisConfigURL());
+                    config.getId() + " in " + Configs.getAlgorithmConfigURL());
         }
         configs.put(config.getId(), config);
     }
 
     /**
-     * Given an analysis id, returns the corresponding AnalysisConfig.
+     * Given an analysis id, returns the corresponding AlgorithmConfig.
      *
      * @throws ConfigException when the manager does not contain
-     *                         the AnalysisConfig for the given id.
+     *                         the AlgorithmConfig for the given id.
      */
-    AnalysisConfig getConfig(String id) {
-        AnalysisConfig config = configs.get(id);
+    AlgorithmConfig getConfig(String id) {
+        AlgorithmConfig config = configs.get(id);
         if (config == null) {
             throw new ConfigException("Analysis \"" + id + "\" is not found in " +
-                    Configs.getAnalysisConfigURL());
+                    Configs.getAlgorithmConfigURL());
         }
         return config;
     }
 
     /**
-     * Overwrites the AnalysisConfig.options by corresponding PlanConfig.options.
+     * Overwrites the AlgorithmConfig.options by corresponding PlanConfig.options.
      */
     public void overwriteOptions(List<PlanConfig> planConfigs) {
         planConfigs.forEach(pc ->
@@ -59,13 +59,13 @@ public class ConfigManager {
     }
 
     /**
-     * Obtains the required analyses of given analysis (represented by AnalysisConfig).
+     * Obtains the required analyses of given analysis (represented by AlgorithmConfig).
      * This computation is based on the options given in PlanConfig,
      * thus this method should be called after invoking {@link #overwriteOptions}.
      * NOTE: we should obtain required configs by this method, instead of
-     * {@link AnalysisConfig#getRequires()}.
+     * {@link AlgorithmConfig#getRequires()}.
      */
-    List<AnalysisConfig> getRequiredConfigs(AnalysisConfig config) {
+    List<AlgorithmConfig> getRequiredConfigs(AlgorithmConfig config) {
         return requires.computeIfAbsent(config, c ->
                 c.getRequires()
                         .stream()
@@ -80,12 +80,12 @@ public class ConfigManager {
     /**
      * @return all configs (directly and indirectly) required by the given config
      */
-    Set<AnalysisConfig> getAllRequiredConfigs(AnalysisConfig config) {
-        Set<AnalysisConfig> visited = Sets.newHybridSet();
-        Deque<AnalysisConfig> queue = new ArrayDeque<>(
+    Set<AlgorithmConfig> getAllRequiredConfigs(AlgorithmConfig config) {
+        Set<AlgorithmConfig> visited = Sets.newHybridSet();
+        Deque<AlgorithmConfig> queue = new ArrayDeque<>(
                 getRequiredConfigs(config));
         while (!queue.isEmpty()) {
-            AnalysisConfig curr = queue.pop();
+            AlgorithmConfig curr = queue.pop();
             visited.add(curr);
             getRequiredConfigs(curr)
                     .stream()

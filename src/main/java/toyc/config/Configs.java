@@ -16,12 +16,12 @@ public final class Configs {
      * File name of analysis configuration.
      * TODO: the path of configuration file is hardcoded, make it configurable?
      */
-    private static final String CONFIG = "toyc-analyses.yml";
+    private static final String CONFIG = "toyc-algorithms.yml";
 
     /**
      * @return the content of analysis configuration.
      */
-    public static InputStream getAnalysisConfig() {
+    public static InputStream getAlgorithmConfig() {
         return Configs.class
                 .getClassLoader()
                 .getResourceAsStream(CONFIG);
@@ -30,7 +30,7 @@ public final class Configs {
     /**
      * @return the URL of analysis configuration.
      */
-    public static URL getAnalysisConfigURL() {
+    public static URL getAlgorithmConfigURL() {
         return Configs.class
                 .getClassLoader()
                 .getResource(CONFIG);
@@ -62,7 +62,8 @@ public final class Configs {
      * a=b|c|d&amp;x=y
      * TODO: comprehensive error handling for invalid conditions
      */
-    static boolean satisfyConditions(String conditions, AnalysisOptions options) {
+    static boolean satisfyConditions(String conditions,
+                                     AlgorithmOptions options) {
         if (conditions != null) {
             outer:
             for (String conds : conditions.split("&")) {

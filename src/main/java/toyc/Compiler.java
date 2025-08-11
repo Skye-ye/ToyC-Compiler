@@ -2,7 +2,7 @@ package toyc;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import toyc.analysis.AnalysisManager;
+import toyc.algorithm.AlgorithmManager;
 import toyc.config.*;
 import toyc.frontend.cache.CachedWorldBuilder;
 import toyc.ir.IR;
@@ -27,15 +27,14 @@ public class Compiler {
             LoggerConfigs.setOutput(options.getOutputDir());
             Plan plan = processConfigs(options);
             if (plan.analyses().isEmpty()) {
-                logger.info("No analyses are specified, printing IR");
-                buildWorld(options, plan.analyses());
-                printIR();
+                logger.info("No analyses are specified");
                 System.exit(0);
             }
             buildWorld(options, plan.analyses());
             executePlan(plan);
         }, "ToyC Compiler");
         LoggerConfigs.reconfigure();
+        printIR();
     }
 
     private static Options processArgs(String... args) {
@@ -48,10 +47,10 @@ public class Compiler {
     }
 
     private static Plan processConfigs(Options options) {
-        InputStream content = Configs.getAnalysisConfig();
-        List<AnalysisConfig> analysisConfigs = AnalysisConfig.parseConfigs(content);
-        ConfigManager manager = new ConfigManager(analysisConfigs);
-        AnalysisPlanner planner = new AnalysisPlanner(
+        InputStream content = Configs.getAlgorithmConfig();
+        List<AlgorithmConfig> algorithmConfigs = AlgorithmConfig.parseConfigs(content);
+        ConfigManager manager = new ConfigManager(algorithmConfigs);
+        AlgorithmPlanner planner = new AlgorithmPlanner(
                 manager, options.getKeepResult());
         boolean reachableScope = options.getScope().equals(Scope.REACHABLE);
         if (!options.getAnalyses().isEmpty()) {
@@ -89,7 +88,7 @@ public class Compiler {
         LoggerConfigs.reconfigure();
     }
 
-    private static void buildWorld(Options options, List<AnalysisConfig> analyses) {
+    private static void buildWorld(Options options, List<AlgorithmConfig> analyses) {
         Timer.runAndCount(() -> {
             try {
                 Class<? extends WorldBuilder> builderClass = options.getWorldBuilderClass();
@@ -110,7 +109,11 @@ public class Compiler {
     }
 
     private static void executePlan(Plan plan) {
-        new AnalysisManager(plan).execute();
+        AlgorithmManager am = new AlgorithmManager(plan);
+        // TODO: In real use, we should check whether IR has changed
+        for (int i = 0; i < 10; i++) {
+            am.execute();
+        }
     }
 
     private static void printIR() {
