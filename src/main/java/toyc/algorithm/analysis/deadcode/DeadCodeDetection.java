@@ -15,6 +15,7 @@ import toyc.config.AlgorithmConfig;
 import toyc.ir.IR;
 import toyc.ir.exp.*;
 import toyc.ir.stmt.AssignStmt;
+import toyc.ir.stmt.Call;
 import toyc.ir.stmt.If;
 import toyc.ir.stmt.Stmt;
 import toyc.util.collection.Sets;
@@ -52,6 +53,9 @@ public class DeadCodeDetection extends FunctionAnalysis<Set<Stmt>> {
             if (isDeadAssignment(stmt, liveVars)) {
                 // record dead assignment
                 deadCode.add(stmt);
+            } else if (isDeadCall(stmt, liveVars)) {
+                // record dead call
+                deadCode.add(stmt);
             }
             cfg.getOutEdgesOf(stmt)
                     .stream()
@@ -85,6 +89,22 @@ public class DeadCodeDetection extends FunctionAnalysis<Set<Stmt>> {
         return false;
     }
 
+    private static boolean isDeadCall(
+            Stmt stmt, NodeResult<Stmt, SetFact<Var>> liveVars) {
+        if (stmt instanceof Call call) {
+            Var result = call.getResult();
+            if (result != null) {
+                return !liveVars.getOutFact(call).contains(result) &&
+                        hasNoSideEffect(call.getCallExp());
+            } else {
+                // if the call has no result, it is dead if it has no side effect
+                return hasNoSideEffect(call.getCallExp());
+            }
+        }
+        return false;
+    }
+
+
     private static boolean isUnreachableBranch(
             CFGEdge<Stmt> edge, NodeResult<Stmt, CPFact> constants) {
         Stmt src = edge.source();
@@ -104,7 +124,6 @@ public class DeadCodeDetection extends FunctionAnalysis<Set<Stmt>> {
      * @return true if given RValue has no side effect, otherwise false.
      */
     private static boolean hasNoSideEffect(RValue rvalue) {
-        // new expression modifies the heap
         if (rvalue instanceof ArithmeticExp) {
             ArithmeticExp.Op op = ((ArithmeticExp) rvalue).getOperator();
             // may trigger DivideByZeroException

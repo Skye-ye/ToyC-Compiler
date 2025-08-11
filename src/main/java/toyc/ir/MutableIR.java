@@ -97,7 +97,7 @@ public class MutableIR {
      * Collect all variables used in the IR.
      */
     private List<Var> collectVars() {
-        Set<Var> vars = new HashSet<>(params);
+        Set<Var> vars = new LinkedHashSet<>(params);
         
         // Collect variables from all statements
         for (Stmt stmt : stmts) {
@@ -116,7 +116,11 @@ public class MutableIR {
             }
         }
         
-        return new ArrayList<>(vars);
+        List<Var> allVar = new ArrayList<>(vars);
+        for (int i = 0; i < allVar.size(); i++) {
+            allVar.get(i).setIndex(i);
+        }
+        return allVar;
     }
 
     /**

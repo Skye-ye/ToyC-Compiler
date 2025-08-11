@@ -1,6 +1,6 @@
 optionsFile: null
 printHelp: false
-inputFile: src/test/resources/toyc/oj/05_function_call.tc
+inputFile: src/test/resources/toyc/oj/10_void_fn.tc
 worldBuilderClass: toyc.frontend.ToyCWorldBuilder
 outputDir: output
 preBuildIR: false
@@ -9,7 +9,9 @@ scope: REACHABLE
 planFile: null
 onlyGenPlan: false
 analyses:
-  live-var: ""
+  const-fold: ""
+  inter-const-prop: ""
+  dead-code: ""
   process-result: ""
 keepResult:
   - $KEEP-ALL

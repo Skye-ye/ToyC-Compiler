@@ -82,7 +82,7 @@
     dump: true # whether dump CSE results
 
 - description: constant folding
-  algorithmClass: toyc.algorithm.optimization.constfold.ConstantFolding
+  algorithmClass: toyc.algorithm.optimization.ConstantFolding
   id: const-fold
   modification: true
   requires: [ inter-const-prop ]
@@ -104,7 +104,7 @@
   id: process-result
   modification: false
   options:
-    analyses: [ live-var ]
+    analyses: [ dead-code ]
     action: dump # | compare
     file: null
     log-mismatches: false
