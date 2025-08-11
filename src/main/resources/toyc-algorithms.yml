@@ -88,7 +88,7 @@
   requires: [ inter-const-prop ]
 
 - description: dead code elimination
-  algorithmClass: toyc.algorithm.optimization.deadcode.DeadCodeElimination
+  algorithmClass: toyc.algorithm.optimization.DeadCodeElimination
   id: dead-code-elim
   modification: true
   requires: [ dead-code ]

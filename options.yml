@@ -10,7 +10,7 @@ planFile: null
 onlyGenPlan: false
 analyses:
   const-fold: ""
-  inter-const-prop: ""
+  dead-code-elim: ""
   dead-code: ""
   process-result: ""
 keepResult:
