@@ -1,5 +1,13 @@
+int assign(int a, int b, int c) {
+    int d = a + b;
+    b = d;
+    return c;
+}
+
+
 int main() {
     int x = 1;
     x = x + 1;
+    int a = assign(x, x + 1, x + 2);
     return 0;
 }

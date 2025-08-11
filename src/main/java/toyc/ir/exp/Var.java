@@ -30,7 +30,7 @@ public class Var implements LValue, RValue, Indexable {
     /**
      * The index of this variable in {@link #function}.
      */
-    private final int index;
+    private int index;
 
     /**
      * If this variable is a (temporary) variable generated for holding
@@ -55,8 +55,22 @@ public class Var implements LValue, RValue, Indexable {
     /**
      * @return the method containing this Var.
      */
-    public Function getMethod() {
+    public Function getFunction() {
         return function;
+    }
+
+    /**
+     * Sets the index of this variable in the container IR.
+     * This method should be called in optimization passes
+     *
+     * @param index the index to set
+     * @throws AnalysisException if the index is negative
+     */
+    public void setIndex(int index) {
+        if (index < 0) {
+            throw new AnalysisException("Index cannot be negative: " + index);
+        }
+        this.index = index;
     }
 
     /**

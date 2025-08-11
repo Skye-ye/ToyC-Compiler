@@ -9,7 +9,7 @@ import toyc.AbstractWorldBuilder;
 import toyc.ToyCLexer;
 import toyc.ToyCParser;
 import toyc.World;
-import toyc.config.AnalysisConfig;
+import toyc.config.AlgorithmConfig;
 import toyc.config.Options;
 import toyc.frontend.ir.IRBuilder;
 import toyc.frontend.semantic.SemanticChecker;
@@ -34,7 +34,7 @@ public class ToyCWorldBuilder extends AbstractWorldBuilder {
     private Map<String, ToyCParser.FuncDefContext> functionContexts;
 
     @Override
-    public void build(Options options, List<AnalysisConfig> analyses) {
+    public void build(Options options, List<AlgorithmConfig> analyses) {
         logger.info("Building ToyC world...");
 
         // Reset World

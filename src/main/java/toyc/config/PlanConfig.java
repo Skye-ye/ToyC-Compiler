@@ -20,10 +20,10 @@ import java.util.StringJoiner;
 /**
  * Configuration for an analysis to be executed.
  * <p>
- * Different from {@link AnalysisConfig} which is specified by configuration file,
+ * Different from {@link AlgorithmConfig} which is specified by configuration file,
  * {@link PlanConfig} is specified by either plan file or options.
  *
- * @see AnalysisConfig
+ * @see AlgorithmConfig
  */
 public class PlanConfig {
 
@@ -41,22 +41,22 @@ public class PlanConfig {
      * Options for the analysis.
      */
     @JsonProperty
-    private final AnalysisOptions options;
+    private final AlgorithmOptions options;
 
     @JsonCreator
     public PlanConfig(
             @JsonProperty("id") String id,
-            @JsonProperty("options") AnalysisOptions options) {
+            @JsonProperty("options") AlgorithmOptions options) {
         this.id = id;
         this.options = Objects.requireNonNullElse(options,
-                AnalysisOptions.emptyOptions());
+                AlgorithmOptions.emptyOptions());
     }
 
     public String getId() {
         return id;
     }
 
-    public AnalysisOptions getOptions() {
+    public AlgorithmOptions getOptions() {
         return options;
     }
 
@@ -99,7 +99,7 @@ public class PlanConfig {
                                 ? Map.of()
                                 // Leverage Jackson to parse YAML string to Map
                                 : mapper.readValue(optStr, mapType);
-                        return new PlanConfig(id, new AnalysisOptions(optsMap));
+                        return new PlanConfig(id, new AlgorithmOptions(optsMap));
                     } catch (JsonProcessingException e) {
                         throw new ConfigException("Invalid analysis options: " +
                                 entry.getKey() + ":" + entry.getValue(), e);

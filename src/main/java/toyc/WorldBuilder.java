@@ -1,6 +1,6 @@
 package toyc;
 
-import toyc.config.AnalysisConfig;
+import toyc.config.AlgorithmConfig;
 import toyc.config.Options;
 
 import java.util.List;
@@ -18,5 +18,5 @@ public interface WorldBuilder {
      * @param options  the options
      * @param analyses the analyses to be executed
      */
-    void build(Options options, List<AnalysisConfig> analyses);
+    void build(Options options, List<AlgorithmConfig> analyses);
 }

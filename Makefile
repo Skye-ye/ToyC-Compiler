@@ -1,7 +1,7 @@
 GRADLEW := ./gradlew
 GRADLEW_ARGS := --warning-mode all
 
-.PHONY: all build compile run test clean dot
+.PHONY: all build run test clean
 all: build
 
 build:
@@ -9,9 +9,12 @@ build:
 
 run:
 ifndef ARGS
-	$(error ARGS is not set. Usage: make run ARGS='<arguments to pass to the program>')
-endif
+	@echo "Usage: make run ARGS='<arguments>'"
+	@echo "Example: make run ARGS='-op=options.yml'"
+	@echo "Example: make run ARGS='--help'"
+else
 	@$(GRADLEW) run $(GRADLEW_ARGS) --args='$(ARGS)'
+endif
 
 test:
 	@$(GRADLEW) test $(GRADLEW_ARGS)
