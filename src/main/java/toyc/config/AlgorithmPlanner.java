@@ -8,13 +8,17 @@ import toyc.util.graph.SCC;
 import toyc.util.graph.SimpleGraph;
 import toyc.util.graph.TopologicalSorter;
 
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Queue;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static toyc.util.collection.Sets.newSet;
 
 /**
- * Makes analysis plan based on given plan configs and analysis configs.
+ * Makes algorithm plan based on given plan configs and algorithm configs.
  */
 public class AlgorithmPlanner {
 
@@ -32,10 +36,10 @@ public class AlgorithmPlanner {
 
     /**
      * This method makes a plan by converting given list of PlanConfig
-     * to AnalysisConfig. It will be used when analysis plan is specified
+     * to algorithmConfig. It will be used when algorithm plan is specified
      * by configuration file.
      *
-     * @return the analysis plan consists of a list of analysis config.
+     * @return the algorithm plan consists of a list of algorithm config.
      * @throws ConfigException if the given planConfigs are invalid.
      */
     public Plan makePlan(List<PlanConfig> planConfigs,
@@ -44,15 +48,11 @@ public class AlgorithmPlanner {
         validateAnalyses(analyses, reachableScope);
         Graph<AlgorithmConfig> graph = buildDependenceGraph(analyses);
         validateDependenceGraph(graph);
-        
-        // Expand plan to handle IR modifications
-        analyses = expandPlanWithIRModification(analyses, reachableScope);
-        
         return new Plan(analyses, graph, keepResult);
     }
 
     /**
-     * Converts a list of PlanConfigs to the list of corresponding AnalysisConfigs.
+     * Converts a list of PlanConfigs to the list of corresponding algorithmConfigs.
      */
     private List<AlgorithmConfig> covertConfigs(List<PlanConfig> planConfigs) {
         return planConfigs.stream()
@@ -61,34 +61,36 @@ public class AlgorithmPlanner {
     }
 
     /**
-     * Checks if the given analysis sequence is valid.
+     * Checks if the given algorithm sequence is valid.
      *
-     * @param analyses       the given analysis sequence
-     * @param reachableScope whether the analysis scope is set to reachable
+     * @param analyses       the given algorithm sequence
+     * @param reachableScope whether the algorithm scope is set to reachable
      * @throws ConfigException if the given analyses is invalid
      */
-    private void validateAnalyses(List<AlgorithmConfig> analyses, boolean reachableScope) {
+    private void validateAnalyses(List<AlgorithmConfig> analyses,
+                                  boolean reachableScope) {
         // check if all required analyses are placed in front of
         // their requiring analyses
         for (int i = 0; i < analyses.size(); ++i) {
             AlgorithmConfig config = analyses.get(i);
-            for (AlgorithmConfig required : manager.getRequiredConfigs(config)) {
+            for (AlgorithmConfig required :
+                    manager.getRequiredConfigs(config)) {
                 int rindex = analyses.indexOf(required);
                 if (rindex == -1) {
-                    // required analysis is missing
+                    // required algorithm is missing
                     throw new ConfigException(String.format(
-                            "'%s' is required by '%s' but missing in analysis plan",
+                            "'%s' is required by '%s' but missing in algorithm plan",
                             required, config));
                 } else if (rindex >= i) {
-                    // invalid analysis order: required analysis runs
-                    // after current analysis
+                    // invalid algorithm order: required algorithm runs
+                    // after current algorithm
                     throw new ConfigException(String.format(
                             "'%s' is required by '%s' but it runs after '%s'",
                             required, config, config));
                 }
             }
         }
-        if (reachableScope) { // analysis scope is set to reachable
+        if (reachableScope) { // algorithm scope is set to reachable
             // check if given analyses include call graph builder
             AlgorithmConfig cg = CollectionUtils.findFirst(analyses,
                     AlgorithmPlanner::isCG);
@@ -118,22 +120,39 @@ public class AlgorithmPlanner {
     }
 
     /**
-     * This method makes an analysis plan based on given plan configs,
+     * This method makes an algorithm plan based on given plan configs,
      * and it will automatically add required analyses (which are not in
      * the given plan) to the resulting plan.
-     * It will be used when analysis plan is specified by command line options.
+     * It will be used when algorithm plan is specified by command line options.
      *
-     * @return the analysis plan consisting of a list of analysis config.
+     * @return the algorithm plan consisting of a list of algorithm config.
      * @throws ConfigException if the specified planConfigs is invalid.
      */
     public Plan expandPlan(List<PlanConfig> planConfigs,
                            boolean reachableScope) {
         List<AlgorithmConfig> configs = covertConfigs(planConfigs);
+        // Split the configs according to modification field
+        List<List<AlgorithmConfig>> splitConfigs =
+                CollectionUtils.splitByBooleanField(configs,
+                        AlgorithmConfig::getModification);
+        List<AlgorithmConfig> analyses = new ArrayList<>();
+        for (List<AlgorithmConfig> split : splitConfigs) {
+            // resolve dependencies for each split
+            List<AlgorithmConfig> resolved = resolveDependencies(split, reachableScope);
+            analyses.addAll(resolved);
+        }
+        // Generate dependence graph
+        Graph<AlgorithmConfig> graph = buildDependenceGraph(analyses);
+        validateDependenceGraph(graph);
+        return new Plan(analyses, graph, keepResult);
+    }
+
+    private List<AlgorithmConfig> resolveDependencies(List<AlgorithmConfig> configs, boolean reachableScope) {
         if (reachableScope) { // complete call graph builder
             AlgorithmConfig cg = CollectionUtils.findFirst(configs,
                     AlgorithmPlanner::isCG);
             if (cg == null) {
-                // if analysis scope is reachable and call graph builder is
+                // if algorithm scope is reachable and call graph builder is
                 // not given, then we automatically add it
                 configs.add(manager.getConfig(CallGraphBuilder.ID));
             }
@@ -144,11 +163,7 @@ public class AlgorithmPlanner {
         if (reachableScope) {
             analyses = shiftCG(analyses);
         }
-        
-        // Expand plan to handle IR modifications
-        analyses = expandPlanWithIRModification(analyses, reachableScope);
-        
-        return new Plan(analyses, graph, keepResult);
+        return analyses;
     }
 
     /**
@@ -191,10 +206,10 @@ public class AlgorithmPlanner {
     }
 
     /**
-     * Builds a dependence graph for AnalysisConfigs.
-     * This method traverses relevant AnalysisConfigs starting from the ones
+     * Builds a dependence graph for AlgorithmConfigs.
+     * This method traverses relevant AlgorithmConfigs starting from the ones
      * specified by given configs. During the traversal, if it finds that
-     * analysis A1 is required by A2, then it adds an edge A1 -> A2 and
+     * algorithm A1 is required by A2, then it adds an edge A1 -> A2 and
      * nodes A1 and A2 to the resulting graph.
      * <p>
      * The resulting graph contains the given analyses (planConfigs) and
@@ -225,136 +240,21 @@ public class AlgorithmPlanner {
      */
     private void validateDependenceGraph(Graph<AlgorithmConfig> graph) {
         // Check if the dependence graph is self-contained, i.e.,
-        // every required analysis is included in the graph
+        // every required algorithm is included in the graph
         graph.forEach(config -> {
             List<AlgorithmConfig> missing = Lists.filter(
                     manager.getRequiredConfigs(config),
                     c -> !graph.hasNode(c));
             if (!missing.isEmpty()) {
-                throw new ConfigException("Invalid analysis plan: " +
+                throw new ConfigException("Invalid algorithm plan: " +
                         missing + " are missing");
             }
         });
         // Check if the dependence graph contains cycles
         SCC<AlgorithmConfig> scc = new SCC<>(graph);
         if (!scc.getTrueComponents().isEmpty()) {
-            throw new ConfigException("Invalid analysis plan: " +
+            throw new ConfigException("Invalid algorithm plan: " +
                     scc.getTrueComponents() + " are mutually dependent");
         }
-    }
-
-    /**
-     * Expands the given analysis plan to handle IR modifications.
-     * When an algorithm modifies IR, all previously executed analyses become invalid
-     * since their results are stored in the IR. This method re-inserts required
-     * analyses after each IR-modifying algorithm.
-     *
-     * @param originalPlan the original analysis plan
-     * @param reachableScope whether the analysis scope is set to reachable
-     * @return expanded plan with re-inserted analyses after IR modifications
-     */
-    private List<AlgorithmConfig> expandPlanWithIRModification(List<AlgorithmConfig> originalPlan, boolean reachableScope) {
-        List<AlgorithmConfig> expandedPlan = new ArrayList<>();
-        List<AlgorithmConfig> executedNonModifying = new ArrayList<>();
-        
-        for (int i = 0; i < originalPlan.size(); i++) {
-            AlgorithmConfig config = originalPlan.get(i);
-            expandedPlan.add(config);
-            
-            if (isIRModifying(config)) {
-                // Find what analyses future algorithms need
-                Set<AlgorithmConfig> neededAnalyses = findNeededAnalysesAfterModification(
-                    executedNonModifying, originalPlan, i + 1, reachableScope);
-                
-                // Add needed analyses in dependency order    
-                List<AlgorithmConfig> orderedNeeded = orderByDependencies(neededAnalyses);
-                expandedPlan.addAll(orderedNeeded);
-                
-                // Update executed list - only keep the re-inserted analyses
-                executedNonModifying.clear();
-                executedNonModifying.addAll(orderedNeeded);
-            } else {
-                // Non-modifying algorithm - add to executed list
-                executedNonModifying.add(config);
-            }
-        }
-        
-        return expandedPlan;
-    }
-
-    /**
-     * Checks if the given algorithm modifies IR.
-     */
-    private boolean isIRModifying(AlgorithmConfig config) {
-        return config.getModification() != null && config.getModification();
-    }
-
-    /**
-     * Finds analyses that need to be re-run after IR modification.
-     * This method looks at future algorithms in the plan and determines which
-     * previously executed analyses they depend on.
-     *
-     * @param executedNonModifying analyses executed before the IR modification
-     * @param originalPlan the complete original plan
-     * @param startIndex index to start looking for future algorithms
-     * @param reachableScope whether the analysis scope is set to reachable
-     * @return set of analyses that need to be re-run
-     */
-    private Set<AlgorithmConfig> findNeededAnalysesAfterModification(
-            List<AlgorithmConfig> executedNonModifying,
-            List<AlgorithmConfig> originalPlan,
-            int startIndex,
-            boolean reachableScope) {
-        
-        Set<AlgorithmConfig> needed = newSet();
-        
-        // If using reachable scope, always need to rebuild call graph after IR modification
-        // because function calls might have changed, affecting reachability
-        if (reachableScope) {
-            AlgorithmConfig cgConfig = CollectionUtils.findFirst(executedNonModifying,
-                    AlgorithmPlanner::isCG);
-            if (cgConfig != null) {
-                needed.add(cgConfig);
-                // Also add its dependencies
-                needed.addAll(manager.getAllRequiredConfigs(cgConfig));
-            }
-        }
-        
-        // Look at all future algorithms in the plan
-        for (int i = startIndex; i < originalPlan.size(); i++) {
-            AlgorithmConfig futureConfig = originalPlan.get(i);
-            
-            // Find all dependencies of this future algorithm
-            Set<AlgorithmConfig> allRequired = manager.getAllRequiredConfigs(futureConfig);
-            
-            // Add any required analyses that were executed before the IR modification
-            for (AlgorithmConfig required : allRequired) {
-                if (executedNonModifying.contains(required)) {
-                    needed.add(required);
-                    // Also add its dependencies recursively
-                    needed.addAll(manager.getAllRequiredConfigs(required));
-                }
-            }
-        }
-        
-        // Filter to only include analyses from the executed list
-        needed.retainAll(executedNonModifying);
-        
-        return needed;
-    }
-
-    /**
-     * Orders the given analyses by their dependencies using topological sort.
-     */
-    private List<AlgorithmConfig> orderByDependencies(Set<AlgorithmConfig> analyses) {
-        if (analyses.isEmpty()) {
-            return List.of();
-        }
-        
-        // Build dependency graph for these analyses
-        Graph<AlgorithmConfig> subGraph = buildDependenceGraph(new ArrayList<>(analyses));
-        
-        // Return topologically sorted order
-        return new TopologicalSorter<>(subGraph).get();
     }
 }

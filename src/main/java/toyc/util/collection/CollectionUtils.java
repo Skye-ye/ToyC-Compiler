@@ -2,6 +2,7 @@ package toyc.util.collection;
 
 import javax.annotation.Nullable;
 import java.util.*;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
 
@@ -82,5 +83,41 @@ public final class CollectionUtils {
         } else {
             return Collections.unmodifiableSet(Sets.newHybridSet(c));
         }
+    }
+
+    /**
+     * Splits the given list into sub-lists by a boolean field.
+     * @param list the list to be split
+     * @param fieldExtractor a function that extracts a boolean field from each element
+     * of the list. The list will be split whenever this field is true.
+     * The last sub-list will contain all remaining elements.
+     * @return a list of sub-lists, where each sub-list contains elements
+     * until the boolean field is true for an element.
+     * @param <T> the type of elements in the list
+     */
+    public static <T> List<List<T>> splitByBooleanField(List<T> list, Function<T, Boolean> fieldExtractor) {
+        if (list.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<List<T>> result = new ArrayList<>();
+        List<T> currentGroup = new ArrayList<>();
+
+        for (T element : list) {
+            currentGroup.add(element);
+
+            if (fieldExtractor.apply(element)) {
+                // End current group and start new one
+                result.add(new ArrayList<>(currentGroup));
+                currentGroup.clear();
+            }
+        }
+
+        // Add remaining elements if any
+        if (!currentGroup.isEmpty()) {
+            result.add(currentGroup);
+        }
+
+        return result;
     }
 }
