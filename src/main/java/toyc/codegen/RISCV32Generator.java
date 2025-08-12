@@ -32,14 +32,35 @@ public class RISCV32Generator implements AssemblyGenerator {
         Set<LiveInterval> intervals = calculateSimpleLiveIntervals(ir);
         RegisterAllocator allocator = new LinearScanAllocator(intervals);
 
+        // 计算栈帧信息
+        StackFrameInfo frameInfo = new StackFrameInfo(ir, allocator);
+
         builder.addGlobalFunc(function.getName());
+
+        // 4. 生成prologue
+        PrologueEpilogueGen.generatePrologue(builder, frameInfo);
 
         // Generate code for each statement using visitor pattern
         StmtCodeGenerator codeGen = new StmtCodeGenerator(builder, allocator);
         for (Stmt stmt : ir.getStmts()) {
-            stmt.accept(codeGen);
+            // 如果是return语句，需要在返回前生成epilogue
+            if (stmt instanceof Return) {
+                // 先处理return值的设置
+                stmt.accept(codeGen);
+                // 然后生成epilogue
+                PrologueEpilogueGen.generateEpilogue(builder, frameInfo);
+                // 最后添加返回指令
+                builder.ret();
+            } else {
+                stmt.accept(codeGen);
+            }
         }
 
+        // 如果函数没有显式的return语句，在最后添加epilogue和return
+        if (ir.getStmts().isEmpty() || !(ir.getStmts().get(ir.getStmts().size() - 1) instanceof Return)) {
+            PrologueEpilogueGen.generateEpilogue(builder, frameInfo);
+            builder.ret();
+        }
         return builder.toString();
     }
 
@@ -80,6 +101,7 @@ public class RISCV32Generator implements AssemblyGenerator {
             }
             return null;
         }
+
 
         @Override
         public Void visit(Copy stmt) {
@@ -169,7 +191,6 @@ public class RISCV32Generator implements AssemblyGenerator {
                     builder.mv("a0", srcReg);
                 }
             }
-            builder.ret();
             return null;
         }
 
