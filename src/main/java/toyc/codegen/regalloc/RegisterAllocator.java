@@ -1,5 +1,6 @@
 package toyc.codegen.regalloc;
-
+import java.util.Set;
+import java.util.List;
 public interface RegisterAllocator {
     /**
      * Allocate a location (register or stack) for a variable
@@ -13,4 +14,7 @@ public interface RegisterAllocator {
      * @return int The required stack size in bytes
      */
     int getStackSize();
+    Set<String> getUsedCalleeSavedRegisters();
+
+
 }

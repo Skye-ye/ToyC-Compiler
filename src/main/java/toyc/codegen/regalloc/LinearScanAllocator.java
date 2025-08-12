@@ -8,11 +8,15 @@ public class LinearScanAllocator implements RegisterAllocator {
             "t1", "t2", "t3", "t4", "t5", "t6",
             "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11",
             "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"};
+    private static final Set<String> CALLEE_SAVED_REGISTERS = Set.of(
+            "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11"
+    );
     private static final int NUM_REGISTERS = REGISTERS.length;
     private final Map<String, LocalDataLocation> varToLocation;
     private final Set<LiveInterval> intervals;
     private final Set<LiveInterval> activeSortedByEnd;
     private final Set<Integer> freeRegisters;
+    private final Set<String> usedCalleeSavedRegisters;
     private int currentOffset = 0;
 
     public LinearScanAllocator(Set<LiveInterval> intervals) {
@@ -33,6 +37,7 @@ public class LinearScanAllocator implements RegisterAllocator {
             return a.getVariable().compareTo(b.getVariable());
         });
         this.freeRegisters = new HashSet<>();
+        this.usedCalleeSavedRegisters = new HashSet<>();
         // Initialize free registers
         for (int i = 0; i < NUM_REGISTERS; i++) {
             freeRegisters.add(i);
@@ -50,6 +55,11 @@ public class LinearScanAllocator implements RegisterAllocator {
         return (currentOffset + 15) & ~15;
     }
 
+    @Override
+    public Set<String> getUsedCalleeSavedRegisters() {
+        return Collections.unmodifiableSet(usedCalleeSavedRegisters);
+    }
+
     private void allocateRegisters() {
         for (LiveInterval interval : intervals) {
             expireOldIntervals(interval.getStart());
@@ -60,6 +70,10 @@ public class LinearScanAllocator implements RegisterAllocator {
                 freeRegisters.remove(register);
                 interval.setRegister(register);
                 activeSortedByEnd.add(interval);
+                String regName = REGISTERS[register];
+                if (CALLEE_SAVED_REGISTERS.contains(regName)) {
+                    usedCalleeSavedRegisters.add(regName);
+                }
             }
         }
 
