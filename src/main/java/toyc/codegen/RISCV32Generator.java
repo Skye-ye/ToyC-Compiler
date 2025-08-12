@@ -157,27 +157,45 @@ public class RISCV32Generator implements AssemblyGenerator {
             CallExp callExp = stmt.getCallExp();
             Function callee = callExp.getFunction();
 
-            // Calling Convention:
-            // Load arguments into argument registers (a0, a1, ...)
-            for (int i = 0; i < callExp.getArgCount(); i++) {
+            // 1. 准备参数 - RISC-V调用约定: a0-a7传递前8个参数，其余通过栈传递
+            int argCount = callExp.getArgCount();
+            int stackArgsCount = Math.max(0, argCount - 8); // 超过8个参数需要用栈
+            
+            // 为栈参数预留空间
+            if (stackArgsCount > 0) {
+                builder.op3("addi", "sp", "sp", String.valueOf(-stackArgsCount * 4));
+            }
+            
+            // 传递参数
+            for (int i = 0; i < argCount; i++) {
                 Var arg = callExp.getArg(i);
-                String argReg = "a" + i;
                 String srcReg = loadOperand(arg);
-                if (!srcReg.equals(argReg)) {
-                    builder.mv(argReg, srcReg);
+                
+                if (i < 8) {
+                    // 前8个参数用寄存器 a0-a7 传递
+                    String argReg = "a" + i;
+                    if (!srcReg.equals(argReg)) {
+                        builder.mv(argReg, srcReg);
+                    }
+                } else {
+                    // 超过8个的参数通过栈传递
+                    int stackOffset = (i - 8) * 4;
+                    builder.store("sw", srcReg, stackOffset, "sp");
                 }
             }
 
+            // 2. 调用函数
             builder.call(callee.getName());
 
-            // Store return value if needed
+            // 3. 清理栈上的参数
+            if (stackArgsCount > 0) {
+                builder.op3("addi", "sp", "sp", String.valueOf(stackArgsCount * 4));
+            }
+
+            // 4. 处理返回值（如果有）
             if (stmt.getResult() != null) {
-                LocalDataLocation resultLoc = allocator.allocate(stmt.getResult().getName());
-                if (resultLoc.getType() == LocalDataLocation.LocationType.STACK) {
-                    builder.store("sw", "a0", resultLoc.getOffset(), "sp");
-                } else {
-                    builder.mv(resultLoc.getRegister(), "a0");
-                }
+                // 返回值在 a0 寄存器中
+                storeOperand(stmt.getResult(), "a0");
             }
 
             return null;
@@ -186,11 +204,14 @@ public class RISCV32Generator implements AssemblyGenerator {
         @Override
         public Void visit(Return stmt) {
             if (stmt.getValue() != null) {
+                // 将返回值加载到 a0 寄存器
                 String srcReg = loadOperand(stmt.getValue());
                 if (!srcReg.equals("a0")) {
                     builder.mv("a0", srcReg);
                 }
             }
+            // 返回到调用者
+            builder.ret();
             return null;
         }
 
@@ -252,6 +273,20 @@ public class RISCV32Generator implements AssemblyGenerator {
                 return "t0";
             } else {
                 return location.getRegister();
+            }
+        }
+
+        /**
+         * Store a register value into a variable location
+         */
+        private void storeOperand(Var operand, String srcReg) {
+            LocalDataLocation location = allocator.allocate(operand.getName());
+            if (location.getType() == LocalDataLocation.LocationType.STACK) {
+                builder.store("sw", srcReg, location.getOffset(), "sp");
+            } else {
+                if (!srcReg.equals(location.getRegister())) {
+                    builder.mv(location.getRegister(), srcReg);
+                }
             }
         }
 
