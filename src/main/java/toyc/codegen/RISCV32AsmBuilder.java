@@ -184,6 +184,16 @@ public class RISCV32AsmBuilder {
         textDefineBuffer.append(String.format("  bne %s, %s, %s\n", rs1, rs2, label));
     }
 
+    public void bnez(String rs1, String label) {
+        textDefineBuffer.append(String.format("  bnez %s, %s\n", rs1, label));
+    }
+
+    /* 支持标签
+     */
+    public void label(String labelName) {
+        textDefineBuffer.append(labelName + ":");
+    }
+
     /**
      * Branch if less than
      * @param rs1 first register
@@ -254,6 +264,10 @@ public class RISCV32AsmBuilder {
         textDefineBuffer.append(String.format("  sltu %s, %s, %s\n", rd, rs1, rs2));
     }
 
+    public void sltiu(String rd, String rs1, int imm) {
+        textDefineBuffer.append(String.format("  sltiu %s, %s, %d\n", rd, rs1, imm));
+    }
+
     /**
      * Bitwise XOR
      * @param rd destination register
@@ -262,6 +276,10 @@ public class RISCV32AsmBuilder {
      */
     public void xor(String rd, String rs1, String rs2) {
         textDefineBuffer.append(String.format("  xor %s, %s, %s\n", rd, rs1, rs2));
+    }
+
+    public void xori(String rd, String rs1, int imm) {
+        textDefineBuffer.append(String.format("  xori %s, %s, %d\n", rd, rs1, imm));
     }
 
     /**

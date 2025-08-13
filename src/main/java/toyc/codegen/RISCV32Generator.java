@@ -16,6 +16,7 @@ import toyc.language.Program;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -51,9 +52,7 @@ public class RISCV32Generator implements AssemblyGenerator {
         // --- Function Body ---
         // Generate code for each statement using visitor pattern
         StmtCodeGenerator codeGen = new StmtCodeGenerator(builder, allocator);
-        for (Stmt stmt : ir.getStmts()) {
-            stmt.accept(codeGen);
-        }
+        codeGen.generateCode(ir.getStmts()); // 使用新的generateCode方法
 
         // --- Epilogue ---
         builder.restoreRegisters(calleeSaved, hasCallSite ? 4 : 0); // 恢复 callee-saved 寄存器
@@ -101,7 +100,59 @@ public class RISCV32Generator implements AssemblyGenerator {
     /**
      * Statement visitor for generating RISC-V assembly code
      */
-    private record StmtCodeGenerator(RISCV32AsmBuilder builder, RegisterAllocator allocator) implements StmtVisitor<Void> {
+    private static class StmtCodeGenerator implements StmtVisitor<Void> {
+        private final RISCV32AsmBuilder builder;
+        private final RegisterAllocator allocator;
+        private final Map<Stmt, String> stmtLabels;
+        private int labelCounter = 0;
+
+        public StmtCodeGenerator(RISCV32AsmBuilder builder, RegisterAllocator allocator) {
+            this.builder = builder;
+            this.allocator = allocator;
+            this.stmtLabels = new HashMap<>();
+        }
+
+        /**
+         * 为语句生成或获取标签
+         */
+        private String getOrCreateLabel(Stmt stmt) {
+            return stmtLabels.computeIfAbsent(stmt, s -> "L" + (labelCounter++));
+        }
+
+        /**
+         * 预处理IR，为所有可能被跳转到的语句创建标签
+         */
+        public void preprocessLabels(List<Stmt> stmts) {
+            for (Stmt stmt : stmts) {
+                if (stmt instanceof If ifStmt) {
+                    // If语句的目标需要标签
+                    getOrCreateLabel(ifStmt.getTarget());
+                } else if (stmt instanceof Goto gotoStmt) {
+                    // Goto语句的目标需要标签
+                    getOrCreateLabel(gotoStmt.getTarget());
+                }
+            }
+        }
+
+        /**
+         * 生成所有语句的代码，同时处理标签
+         */
+        public void generateCode(List<Stmt> stmts) {
+            // 首先预处理所有标签
+            preprocessLabels(stmts);
+
+            // 生成代码
+            for (Stmt stmt : stmts) {
+                // 如果这个语句有标签，先输出标签
+                if (stmtLabels.containsKey(stmt)) {
+                    builder.label(stmtLabels.get(stmt));
+                }
+                
+                // 生成语句代码
+                stmt.accept(this);
+            }
+        }
+        
 
         @Override
         public Void visit(AssignLiteral stmt) {
@@ -151,20 +202,48 @@ public class RISCV32Generator implements AssemblyGenerator {
             Var lvalue = stmt.getLValue();
             BinaryExp binaryExp = stmt.getRValue();
 
-            // Load operands
             String src1 = loadOperand(binaryExp.getOperand1());
             String src2 = loadOperand(binaryExp.getOperand2());
-
-            // Generate operation
-            String riscvOp = getRISCVOp(binaryExp.getOperator());
-
-            // Store result
             LocalDataLocation destLoc = allocator.allocate(lvalue.getName());
-            if (destLoc.getType() == LocalDataLocation.LocationType.STACK) {
-                builder.op3(riscvOp, "t0", src1, src2);
-                builder.store("sw", "t0", destLoc.getOffset(), "sp");
+            
+            String destReg = (destLoc.getType() == LocalDataLocation.LocationType.STACK) ? "t0" : destLoc.getRegister();
+
+            if (binaryExp.getOperator() instanceof ArithmeticExp.Op arithOp) {
+                String riscvOp = switch (arithOp) {
+                    case ADD -> "add";
+                    case SUB -> "sub";
+                    case MUL -> "mul";
+                    case DIV -> "div";
+                    case REM -> "rem";
+                };
+                builder.op3(riscvOp, destReg, src1, src2);
+            } else if (binaryExp.getOperator() instanceof ConditionExp.Op condOp) {
+                switch (condOp) {
+                    case EQ -> {
+                        builder.op3("sub", destReg, src1, src2);
+                        builder.sltiu(destReg, destReg, 1); // 如果相等，sub结果为0，sltiu设置为1
+                    }
+                    case NE -> {
+                        builder.op3("sub", destReg, src1, src2);
+                        builder.sltu(destReg, "zero", destReg); // 如果不等，sub结果非0，设置为1
+                    }
+                    case LT -> builder.slt(destReg, src1, src2);
+                    case LE -> {
+                        builder.slt(destReg, src2, src1); // src2 < src1
+                        builder.xori(destReg, destReg, 1); // 取反得到 src1 <= src2
+                    }
+                    case GT -> builder.slt(destReg, src2, src1); // 交换操作数
+                    case GE -> {
+                        builder.slt(destReg, src1, src2); // src1 < src2
+                        builder.xori(destReg, destReg, 1); // 取反得到 src1 >= src2
+                    }
+                }
             } else {
-                builder.op3(riscvOp, destLoc.getRegister(), src1, src2);
+                throw new UnsupportedOperationException("Unsupported binary operation: " + binaryExp.getOperator());
+            }
+
+            if (destLoc.getType() == LocalDataLocation.LocationType.STACK) {
+                builder.store("sw", "t0", destLoc.getOffset(), "sp");
             }
 
             return null;
@@ -209,7 +288,6 @@ public class RISCV32Generator implements AssemblyGenerator {
                     builder.mv("a0", srcReg);
                 }
             }
-            builder.ret();
             return null;
         }
 
@@ -217,6 +295,8 @@ public class RISCV32Generator implements AssemblyGenerator {
         public Void visit(Goto stmt) {
             // Handle goto statements for control flow
             // For now, just add a placeholder - full implementation would need label management
+            String targetLabel = getOrCreateLabel(stmt.getTarget());
+            builder.j(targetLabel);
             return null;
         }
 
@@ -224,6 +304,13 @@ public class RISCV32Generator implements AssemblyGenerator {
         public Void visit(If stmt) {
             // Handle conditional jumps
             // For now, just add a placeholder - full implementation would need condition evaluation
+            
+            String condReg = loadOperand(stmt.getCondition());
+            String targetLabel = getOrCreateLabel(stmt.getTarget());
+            
+            // 如果条件为真，跳转到目标标签
+            builder.bnez(condReg, targetLabel);
+            
             return null;
         }
 
@@ -259,23 +346,31 @@ public class RISCV32Generator implements AssemblyGenerator {
          * Load a variable operand into a register and return the register name.
          * Uses temporary registers t0, t1 as needed.
          */
-        private String loadOperand(Var operand) {
-            if (operand.isConst() && operand.getConstValue() instanceof IntLiteral intLit) {
-                builder.li("t0", intLit.getValue());
-                return "t0";
-            }
+        private String loadOperand(RValue operand) {
+            if (operand instanceof Var var) {
+                if (var.isConst() && var.getConstValue() instanceof IntLiteral intLit) {
+                    builder.li("t0", intLit.getValue());
+                    return "t0";
+                }
 
-            LocalDataLocation location = allocator.allocate(operand.getName());
-            if (location.getType() == LocalDataLocation.LocationType.STACK) {
-                builder.load("lw", "t0", location.getOffset(), "sp");
-                return "t0";
+                LocalDataLocation location = allocator.allocate(var.getName());
+                if (location.getType() == LocalDataLocation.LocationType.STACK) {
+                    builder.load("lw", "t0", location.getOffset(), "sp");
+                    return "t0";
+                } else {
+                    return location.getRegister();
+                }
+            } else if (operand instanceof IntLiteral intLit) {
+                builder.li("t1", intLit.getValue());
+                return "t1";
             } else {
-                return location.getRegister();
+                throw new UnsupportedOperationException("Unsupported operand type: " + operand.getClass());
             }
         }
 
         /**
          * Map binary expression operators to RISC-V instructions.
+         * This function seems useless now!
          */
         private String getRISCVOp(BinaryExp.Op op) {
             if (op instanceof ArithmeticExp.Op arithOp) {
