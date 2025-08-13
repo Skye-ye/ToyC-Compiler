@@ -313,10 +313,18 @@ public class RISCV32AsmBuilder {
      * 上层负责传入 stackSize 和调用时机
      * @param stackSize 栈空间大小
      */
-    public void addPrologue(int stackSize) {
-        if (stackSize > 0) {
-            comment("Function prologue - allocate stack");
-            addi("sp", "sp", String.valueOf(-stackSize));
+    public void addPrologue(int stackSize,boolean hasCallSite) {
+        if (stackSize > 0 || hasCallSite) {
+            comment("Function prologue - allocate stack and save ra");
+            // 分配栈空间，包括 ra 的空间（如果需要）
+            int totalStackSize = (stackSize + (hasCallSite ? 4 : 0) + 15) & ~15; // ra 需要 4 字节
+            if (totalStackSize > 0) {
+                addi("sp", "sp", String.valueOf(-totalStackSize));
+            }
+            // 保存 ra
+            if (hasCallSite) {
+                store("sw", "ra", stackSize, "sp"); // 保存 ra 到栈顶
+            }
         }
     }
 
@@ -325,10 +333,18 @@ public class RISCV32AsmBuilder {
      * 上层负责传入 stackSize 和调用时机
      * @param stackSize
      */
-    public void addEpilogue(int stackSize) {
-        if (stackSize > 0) {
-            comment("Function epilogue - deallocate stack");
-            addi("sp", "sp", String.valueOf(stackSize));
+    public void addEpilogue(int stackSize, boolean hasCallSite) {
+        if (stackSize > 0 || hasCallSite) {
+            comment("Function epilogue - restore ra and deallocate stack");
+            // 恢复 ra
+            if (hasCallSite) {
+                load("lw", "ra", stackSize, "sp"); // 从栈顶恢复 ra
+            }
+            // 释放栈空间
+            int totalStackSize = (stackSize + (hasCallSite ? 4 : 0) + 15) & ~15;
+            if (totalStackSize > 0) {
+                addi("sp", "sp", String.valueOf(totalStackSize));
+            }
         }
     }
 

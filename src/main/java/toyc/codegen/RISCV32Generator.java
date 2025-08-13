@@ -1,5 +1,8 @@
 package toyc.codegen;
 
+import toyc.World;
+import toyc.algorithm.analysis.graph.callgraph.CallGraph;
+import toyc.algorithm.analysis.graph.callgraph.CallGraphBuilder;
 import toyc.codegen.regalloc.LinearScanAllocator;
 import toyc.codegen.regalloc.LiveInterval;
 import toyc.codegen.regalloc.LocalDataLocation;
@@ -40,11 +43,10 @@ public class RISCV32Generator implements AssemblyGenerator {
 
         // --- Prologue ---
         int stackSize = allocator.getStackSize();
-        if (stackSize > 0) {
-            builder.addPrologue(stackSize);
-        }
         Set<String> calleeSaved = allocator.getUsedCalleeSavedRegisters();
-        builder.saveRegisters(calleeSaved, 0);
+        builder.addPrologue(stackSize, hasCallSite);
+        builder.saveRegisters(calleeSaved, hasCallSite ? 4 : 0);
+
         
         // --- Function Body ---
         // Generate code for each statement using visitor pattern
@@ -54,10 +56,8 @@ public class RISCV32Generator implements AssemblyGenerator {
         }
 
         // --- Epilogue ---
-        builder.restoreRegisters(calleeSaved, 0);
-        if (stackSize > 0) {
-            builder.addEpilogue(stackSize);
-        }
+        builder.restoreRegisters(calleeSaved, hasCallSite ? 4 : 0); // 恢复 callee-saved 寄存器
+        builder.addEpilogue(stackSize, hasCallSite);
         builder.ret();
 
         return builder.toString();
