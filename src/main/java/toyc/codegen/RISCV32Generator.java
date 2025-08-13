@@ -67,7 +67,9 @@ public class RISCV32Generator implements AssemblyGenerator {
         }
 
 
-        // 在函数末尾生成统一的 epilogue（不完美但简单）
+        // 添加 epilogue 标签，使用固定标签
+        builder.addLabel(".Lreturn");
+        // 在函数末尾生成统一的 epilogue
         if (totalStackSize > 0) {
             builder.comment("Function epilogue");
             int offset = totalStackSize - savedRegistersSize;
@@ -215,7 +217,9 @@ public class RISCV32Generator implements AssemblyGenerator {
                     builder.mv("a0", srcReg);
                 }
             }
-            builder.ret();
+            //builder.ret()
+            // 跳转到 epilogue
+            builder.j(".Lreturn");
             return null;
         }
 
