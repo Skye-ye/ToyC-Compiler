@@ -1,5 +1,7 @@
 package toyc.codegen;
 
+import java.util.Set;
+
 public class RISCV32AsmBuilder {
     private final StringBuffer textDeclareBuffer;
     private final StringBuffer textDefineBuffer;
@@ -304,5 +306,81 @@ public class RISCV32AsmBuilder {
      */
     public void zero(String rd) {
         textDefineBuffer.append(String.format("  mv %s, zero\n", rd));
+    }
+
+    /**
+     * 生成 prologue：仅分配栈空间
+     * 上层负责传入 stackSize 和调用时机
+     * @param stackSize 栈空间大小
+     */
+    public void addPrologue(int stackSize) {
+        if (stackSize > 0) {
+            comment("Function prologue - allocate stack");
+            addi("sp", "sp", String.valueOf(-stackSize));
+        }
+    }
+
+    /**
+     * 生成 epilogue：仅释放栈空间
+     * 上层负责传入 stackSize 和调用时机
+     * @param stackSize
+     */
+    public void addEpilogue(int stackSize) {
+        if (stackSize > 0) {
+            comment("Function epilogue - deallocate stack");
+            addi("sp", "sp", String.valueOf(stackSize));
+        }
+    }
+
+    /**
+     * 保存单个寄存器到栈
+     * @param reg 寄存器名
+     * @param offset 栈偏移量
+     */
+    public void saveRegister(String reg, int offset) {
+        store("sw", reg, offset, "sp");
+    }
+
+    /**
+     * 从栈恢复单个寄存器
+     * @param reg 寄存器名
+     * @param offset 栈偏移量
+     */
+    public void restoreRegister(String reg, int offset) {
+        load("lw", reg, offset, "sp");
+    }
+
+    /**
+     * 批量保存寄存器到栈
+     * 上层负责传入 registers 列表（维护的 callee-saved + ra）和起始偏移
+     * @param registers 寄存器列表
+     * @param startOffset 起始偏移量
+     */
+    public void saveRegisters(Set<String> registers, int startOffset) {
+        if (!registers.isEmpty()) {
+            comment("Save callee-saved registers");
+            int offset = startOffset;
+            for (String reg : registers) {
+                saveRegister(reg, offset);
+                offset += 4;  // 每个寄存器 4 字节
+            }
+        }
+    }
+
+    /**
+     * 批量从栈恢复寄存器
+     * 上层负责传入 registers 列表（维护的 callee-saved + ra）和起始偏移
+     * @param registers 寄存器列表（Set<String>，顺序由上层保证）
+     * @param startOffset 起始偏移量（通常 0 或局部变量后）
+     */
+    public void restoreRegisters(Set<String> registers, int startOffset) {
+        if (!registers.isEmpty()) {
+            comment("Restore callee-saved registers");
+            int offset = startOffset;
+            for (String reg : registers) {
+                restoreRegister(reg, offset);
+                offset += 4;  // 每个寄存器 4 字节
+            }
+        }
     }
 }

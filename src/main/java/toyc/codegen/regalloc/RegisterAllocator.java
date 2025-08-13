@@ -15,6 +15,4 @@ public interface RegisterAllocator {
      */
     int getStackSize();
     Set<String> getUsedCalleeSavedRegisters();
-
-
 }

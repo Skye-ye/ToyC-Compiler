@@ -33,31 +33,7 @@ public class RISCV32Generator implements AssemblyGenerator {
         Set<LiveInterval> intervals = calculateSimpleLiveIntervals(ir);
         RegisterAllocator allocator = new LinearScanAllocator(intervals);
 
-        // 获取使用的 callee-saved 寄存器
-        Set<String> usedCalleeSavedRegs = new LinkedHashSet<>(allocator.getUsedCalleeSavedRegisters());
-        if (hasFunctionCall(ir)) {
-            usedCalleeSavedRegs.add("ra");
-        }
-
-        int localVarStackSize = allocator.getStackSize();
-        int savedRegistersSize = usedCalleeSavedRegs.size() * 4;
-        int totalStackSize = (localVarStackSize + savedRegistersSize + 15) & ~15;
-
         builder.addGlobalFunc(function.getName());
-
-        // 生成 prologue - 保存寄存器在栈顶
-        if (totalStackSize > 0) {
-            builder.comment("Function prologue");
-            builder.addi("sp", "sp", String.valueOf(-totalStackSize));
-
-            // 保存在栈顶，偏移从 totalStackSize - 4 开始
-            int offset = totalStackSize - savedRegistersSize;
-            for (String reg : usedCalleeSavedRegs) {
-                builder.store("sw", reg, offset, "sp");
-                offset += 4;
-            }
-        }
-
 
 
         // Generate code for each statement using visitor pattern
@@ -65,23 +41,6 @@ public class RISCV32Generator implements AssemblyGenerator {
         for (Stmt stmt : ir.getStmts()) {
             stmt.accept(codeGen);
         }
-
-
-        // 添加 epilogue 标签，使用固定标签
-        builder.addLabel(".Lreturn");
-        // 在函数末尾生成统一的 epilogue
-        if (totalStackSize > 0) {
-            builder.comment("Function epilogue");
-            int offset = totalStackSize - savedRegistersSize;
-            for (String reg : usedCalleeSavedRegs) {
-                builder.load("lw", reg, offset, "sp");
-                offset += 4;
-            }
-            builder.addi("sp", "sp", String.valueOf(totalStackSize));
-        }
-        builder.ret();
-
-
 
         return builder.toString();
     }
@@ -91,9 +50,6 @@ public class RISCV32Generator implements AssemblyGenerator {
      * This is a placeholder implementation - in a full compiler, you would
      * use proper live variable analysis.
      */
-    private boolean hasFunctionCall(IR ir) {
-        return ir.getStmts().stream().anyMatch(stmt -> stmt instanceof Call);
-    }
 
     private Set<LiveInterval> calculateSimpleLiveIntervals(IR ir) {
         Set<LiveInterval> intervals = new HashSet<>();
@@ -217,9 +173,7 @@ public class RISCV32Generator implements AssemblyGenerator {
                     builder.mv("a0", srcReg);
                 }
             }
-            //builder.ret()
-            // 跳转到 epilogue
-            builder.j(".Lreturn");
+            builder.ret();
             return null;
         }
 
