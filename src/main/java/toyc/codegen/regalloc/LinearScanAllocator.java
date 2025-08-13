@@ -2,20 +2,24 @@ package toyc.codegen.regalloc;
 
 import java.util.*;
 
-
 public class LinearScanAllocator implements RegisterAllocator {
     private static final String[] REGISTERS = {
-            "t1", "t2", "t3", "t4", "t5", "t6",
-            "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11",
-            "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"};
+            "t1", "t2", "t3", "t4", "t5", "t6",           // 0-6
+            "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", // 7-18
+            "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7" // 19-26
+    };
     private static final Set<String> CALLEE_SAVED_REGISTERS = Set.of(
             "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11"
     );
+    private static final int[] T_REG_INDEX = {0, 1, 2, 3, 4, 5, 6};
+    private static final int[] S_REG_INDEX = {7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18};
     private static final int NUM_REGISTERS = REGISTERS.length;
+
     private final Map<String, LocalDataLocation> varToLocation;
     private final Set<LiveInterval> intervals;
     private final Set<LiveInterval> activeSortedByEnd;
-    private final Set<Integer> freeRegisters;
+    private final Set<Integer> freeTRegisters;
+    private final Set<Integer> freeSRegisters;
     private final Set<String> usedCalleeSavedRegisters;
     private int currentOffset = 0;
 
@@ -25,23 +29,18 @@ public class LinearScanAllocator implements RegisterAllocator {
         this.varToLocation = new HashMap<>();
         this.activeSortedByEnd = new TreeSet<>((a, b) -> {
             int endCompare = Integer.compare(a.getEnd(), b.getEnd());
-            if (endCompare != 0) {
-                return endCompare;
-            }
-            // If end times are equal, compare by start times
+            if (endCompare != 0) return endCompare;
             int startCompare = Integer.compare(a.getStart(), b.getStart());
-            if (startCompare != 0) {
-                return startCompare;
-            }
-            // If both end and start are equal, compare by variable names to ensure uniqueness
+            if (startCompare != 0) return startCompare;
             return a.getVariable().compareTo(b.getVariable());
         });
-        this.freeRegisters = new HashSet<>();
+        this.freeTRegisters = new LinkedHashSet<>();
+        this.freeSRegisters = new LinkedHashSet<>();
         this.usedCalleeSavedRegisters = new HashSet<>();
-        // Initialize free registers
-        for (int i = 0; i < NUM_REGISTERS; i++) {
-            freeRegisters.add(i);
-        }
+        // 初始化t/s寄存器池
+        for (int idx : T_REG_INDEX) freeTRegisters.add(idx);
+        for (int idx : S_REG_INDEX) freeSRegisters.add(idx);
+        // a寄存器只在参数传递时用，普通变量不加
         allocateRegisters();
     }
 
@@ -63,14 +62,21 @@ public class LinearScanAllocator implements RegisterAllocator {
     private void allocateRegisters() {
         for (LiveInterval interval : intervals) {
             expireOldIntervals(interval.getStart());
-            if (freeRegisters.isEmpty()) {
+            int reg = -1;
+            // 简单策略：活跃区间短优先t，长优先s
+            if (interval.getEnd() - interval.getStart() <= 3 && !freeTRegisters.isEmpty()) {
+                reg = freeTRegisters.iterator().next();
+                freeTRegisters.remove(reg);
+            } else if (!freeSRegisters.isEmpty()) {
+                reg = freeSRegisters.iterator().next();
+                freeSRegisters.remove(reg);
+            }
+            if (reg == -1) {
                 spillAtInterval(interval);
             } else {
-                int register = freeRegisters.iterator().next();
-                freeRegisters.remove(register);
-                interval.setRegister(register);
+                interval.setRegister(reg);
                 activeSortedByEnd.add(interval);
-                String regName = REGISTERS[register];
+                String regName = REGISTERS[reg];
                 if (CALLEE_SAVED_REGISTERS.contains(regName)) {
                     usedCalleeSavedRegisters.add(regName);
                 }
@@ -96,8 +102,10 @@ public class LinearScanAllocator implements RegisterAllocator {
             if (interval.getEnd() >= startPoint) {
                 return;
             }
-            if (interval.getRegister() != -1) {  // Only add back non-spilled registers
-                freeRegisters.add(interval.getRegister());
+            if (interval.getRegister() != -1) {
+                int reg = interval.getRegister();
+                if (Arrays.stream(T_REG_INDEX).anyMatch(i -> i == reg)) freeTRegisters.add(reg);
+                else if (Arrays.stream(S_REG_INDEX).anyMatch(i -> i == reg)) freeSRegisters.add(reg);
             }
             iterator.remove();
         }

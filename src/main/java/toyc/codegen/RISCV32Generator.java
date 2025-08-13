@@ -10,8 +10,11 @@ import toyc.ir.stmt.*;
 import toyc.language.Function;
 import toyc.language.Program;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 public class RISCV32Generator implements AssemblyGenerator {
@@ -35,12 +38,27 @@ public class RISCV32Generator implements AssemblyGenerator {
 
         builder.addGlobalFunc(function.getName());
 
-
+        // --- Prologue ---
+        int stackSize = allocator.getStackSize();
+        if (stackSize > 0) {
+            builder.addPrologue(stackSize);
+        }
+        Set<String> calleeSaved = allocator.getUsedCalleeSavedRegisters();
+        builder.saveRegisters(calleeSaved, 0);
+        
+        // --- Function Body ---
         // Generate code for each statement using visitor pattern
         StmtCodeGenerator codeGen = new StmtCodeGenerator(builder, allocator);
         for (Stmt stmt : ir.getStmts()) {
             stmt.accept(codeGen);
         }
+
+        // --- Epilogue ---
+        builder.restoreRegisters(calleeSaved, 0);
+        if (stackSize > 0) {
+            builder.addEpilogue(stackSize);
+        }
+        builder.ret();
 
         return builder.toString();
     }
@@ -52,13 +70,31 @@ public class RISCV32Generator implements AssemblyGenerator {
      */
 
     private Set<LiveInterval> calculateSimpleLiveIntervals(IR ir) {
-        Set<LiveInterval> intervals = new HashSet<>();
-
-        // For simplicity, create an interval for each variable spanning the entire function
-        for (Var var : ir.getVars()) {
-            intervals.add(new LiveInterval(0, ir.getStmts().size() - 1, var.getName()));
+        Map<String, Integer> firstUse = new HashMap<>();
+        Map<String, Integer> lastUse = new HashMap<>();
+        int n = ir.getStmts().size();
+        for (int pos = 0; pos < n; pos++) {
+            var stmt = ir.getStmts().get(pos);
+            // 处理被使用的变量
+            for (RValue r : stmt.getUses()) {
+                if (r instanceof Var v) {
+                    String var = v.getName();
+                    firstUse.putIfAbsent(var, pos);
+                    lastUse.put(var, pos);
+                }
+            }
+            // 处理被定义的变量
+            Optional<LValue> def = stmt.getDef();
+            if (def.isPresent() && def.get() instanceof Var v) {
+                String var = v.getName();
+                firstUse.putIfAbsent(var, pos);
+                lastUse.put(var, pos);
+            }
         }
-
+        Set<LiveInterval> intervals = new HashSet<>();
+        for (String var : firstUse.keySet()) {
+            intervals.add(new LiveInterval(firstUse.get(var), lastUse.get(var), var));
+        }
         return intervals;
     }
 
