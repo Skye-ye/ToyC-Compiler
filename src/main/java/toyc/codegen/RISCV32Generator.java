@@ -40,13 +40,35 @@ public class RISCV32Generator implements AssemblyGenerator {
         Set<LiveInterval> intervals = calculateSimpleLiveIntervals(ir);
         RegisterAllocator allocator = new LinearScanAllocator(intervals);
 
+        boolean hasCallSite = ir.getStmts().stream().anyMatch(stmt -> stmt instanceof Call);  // 假设 Call 是调用语句类
+        // 获取栈大小和 callee-saved 寄存器
+        int stackSize = allocator.getStackSize();  // 局部变量（spilled）空间，已对齐
+        Set<String> calleeSavedSet = allocator.getUsedCalleeSavedRegisters();  // s0-s11
+        // 使用 LinkedHashSet 保持保存顺序（callee-saved 先，ra 后）
+        LinkedHashSet<String> savedRegs = new LinkedHashSet<>(calleeSavedSet);
+        if (hasCallSite) {
+            savedRegs.add("ra");  // 如果有子调用，添加 ra
+        }
+        // 计算保存区大小
+        int saveSize = savedRegs.size() * 4;
+        // 计算总栈帧大小，确保 16 字节对齐
+        int totalStackSize = (stackSize + saveSize + 15) & ~15;
+
         builder.addGlobalFunc(function.getName());
 
         // --- Prologue ---
-        int stackSize = allocator.getStackSize();
-        Set<String> calleeSaved = allocator.getUsedCalleeSavedRegisters();
-        builder.addPrologue(stackSize, hasCallSite);
-        builder.saveRegisters(calleeSaved, hasCallSite ? 4 : 0);
+        if (totalStackSize > 0 || !savedRegs.isEmpty()) {
+            builder.comment("Function prologue - allocate stack and save registers");
+            if (totalStackSize > 0) {
+                builder.addi("sp", "sp", String.valueOf(-totalStackSize));
+            }
+            int saveOffset = stackSize;  // 保存区从局部变量后开始
+            int currentOffset = saveOffset;
+            for (String reg : savedRegs) {
+                builder.saveRegister(reg, currentOffset);
+                currentOffset += 4;
+            }
+        }
 
         
         // --- Function Body ---
@@ -55,8 +77,18 @@ public class RISCV32Generator implements AssemblyGenerator {
         codeGen.generateCode(ir.getStmts()); // 使用新的generateCode方法
 
         // --- Epilogue ---
-        builder.restoreRegisters(calleeSaved, hasCallSite ? 4 : 0); // 恢复 callee-saved 寄存器
-        builder.addEpilogue(stackSize, hasCallSite);
+        if (totalStackSize > 0 || !savedRegs.isEmpty()) {
+            builder.comment("Function epilogue - restore registers and deallocate stack");
+            int saveOffset = stackSize;
+            int currentOffset = saveOffset;
+            for (String reg : savedRegs) {
+                builder.restoreRegister(reg, currentOffset);
+                currentOffset += 4;
+            }
+            if (totalStackSize > 0) {
+                builder.addi("sp", "sp", String.valueOf(totalStackSize));
+            }
+        }
         builder.ret();
 
         return builder.toString();
