@@ -50,10 +50,10 @@ public class RISCV32Generator implements AssemblyGenerator {
         // 获取栈大小和 callee-saved 寄存器
         int stackSize = allocator.getStackSize();  // 局部变量（spilled）空间，已对齐
         Set<String> calleeSavedSet = allocator.getUsedCalleeSavedRegisters();  // s0-s11
-        // 使用 LinkedHashSet 保持保存顺序（callee-saved 先，ra 后）
-        LinkedHashSet<String> savedRegs = new LinkedHashSet<>(calleeSavedSet);
+        LinkedHashSet<String> savedRegs = new LinkedHashSet<>();
         if (hasCallSite) {
-            savedRegs.add("ra");  // 如果有子调用，添加 ra
+            savedRegs.addAll(calleeSavedSet);  // 只有在有函数调用时才保存 callee-saved
+            savedRegs.add("ra");
         }
         // 计算保存区大小
         int saveSize = savedRegs.size() * 4;
