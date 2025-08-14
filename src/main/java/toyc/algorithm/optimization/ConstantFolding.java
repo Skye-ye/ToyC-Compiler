@@ -26,7 +26,7 @@ public class ConstantFolding extends Optimization {
         operation = new IROperation(ir);
         NodeResult<Stmt, CPFact> constants = World.get().getResult(InterConstantPropagation.ID);
 
-        List<Stmt> stmts = List.copyOf(operation.getIR().getStmts());
+        List<Stmt> stmts = ir.getStmts();
 
         for (Stmt stmt : stmts) {
             CPFact fact = constants.getResult(stmt);
@@ -40,6 +40,10 @@ public class ConstantFolding extends Optimization {
         if (stmt instanceof Return returnStmt) {
             foldReturn(returnStmt, fact);
         } else if (stmt instanceof AssignStmt<?, ?> assignStmt) {
+            if (assignStmt instanceof AssignLiteral) {
+                // Already a literal assignment, no need to fold
+                return;
+            }
             if (assignStmt.getLValue() instanceof Var var) {
                 Value value = fact.get(var);
                 if (value.isConstant()) {
