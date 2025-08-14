@@ -62,7 +62,7 @@ public class AlgorithmManager {
     /**
      * Executes the analysis plan.
      */
-    public void execute() {
+    public List<IR> execute() {
         // initialize
         if (!keepAllResults) {
             dependenceGraph = new SimpleGraph<>();
@@ -83,6 +83,8 @@ public class AlgorithmManager {
                 clearUnusedResults(algorithm);
             }
         });
+        // return optimized IRs
+        return getFunctionScope().stream().map(Function::getIR).toList();
     }
 
     private Algorithm runAlgorithm(AlgorithmConfig config) {
@@ -98,7 +100,7 @@ public class AlgorithmManager {
         } catch (NoSuchMethodException | IllegalAccessException e) {
             throw new AnalysisException("Failed to get constructor " +
                     config.getAlgorithmClass() + "(AnalysisConfig), " +
-                    "thus the analysis cannot be executed by Tai-e", e);
+                    "thus the analysis cannot be executed by compiler", e);
         } catch (InstantiationException | InvocationTargetException e) {
             throw new AnalysisException("Failed to initialize " +
                     config.getAlgorithmClass(), e);

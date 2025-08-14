@@ -4,10 +4,12 @@ import toyc.ir.exp.Var;
 import toyc.ir.stmt.Stmt;
 import toyc.language.Function;
 import toyc.util.AbstractResultHolder;
+import toyc.util.Hashes;
 import toyc.util.Indexer;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -111,5 +113,28 @@ public class DefaultIR extends AbstractResultHolder implements IR {
     @Override
     public Stmt getObject(int i) {
         return getStmt(i);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+
+        DefaultIR other = (DefaultIR) obj;
+
+        return Objects.equals(function, other.function) &&
+                Objects.equals(params, other.params) &&
+                Objects.equals(vars, other.vars) &&
+                Objects.equals(returnVars, other.returnVars) &&
+                Objects.equals(stmts, other.stmts);
+    }
+
+    @Override
+    public int hashCode() {
+        return Hashes.hash(function, params, vars, returnVars, stmts);
     }
 }

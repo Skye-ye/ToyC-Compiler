@@ -5,7 +5,6 @@ import toyc.ir.stmt.Goto;
 import toyc.ir.stmt.If;
 import toyc.ir.stmt.Return;
 import toyc.ir.stmt.Stmt;
-import toyc.language.Function;
 import toyc.util.AnalysisException;
 
 import javax.annotation.Nonnull;
@@ -16,21 +15,24 @@ import java.util.*;
  */
 public class MutableIR {
 
-    private final Function function;
-    private final List<Var> params; // Immutable
+    private final IR ir; // Original immutable IR for reference
     private final List<Stmt> stmts; // Mutable
 
+    private boolean modified = false;
+
     public MutableIR(IR ir) {
-        this.function = ir.getFunction();
-        this.params = List.copyOf(ir.getParams());
+        this.ir = ir;
         this.stmts = new LinkedList<>(ir.getStmts());
     }
 
     public IR toImmutableIR() {
+        if (!modified) {
+            return ir; // If no modifications, return the original IR
+        }
         reindexStmts();
         List<Var> vars = collectVars();
         Set<Var> returnVars = collectReturnVars();
-        return new DefaultIR(function, params, returnVars, vars, stmts);
+        return new DefaultIR(ir.getFunction(), ir.getParams(), returnVars, vars, stmts);
     }
 
     /**
@@ -46,6 +48,7 @@ public class MutableIR {
         while (iterator.hasNext()) {
             if (iterator.next() == afterStmt) {
                 iterator.add(newStmt);
+                modified = true;
                 return;
             }
         }
@@ -66,6 +69,7 @@ public class MutableIR {
             if (iterator.next() == beforeStmt) {
                 iterator.previous(); // Go back to the position before beforeStmt
                 iterator.add(newStmt);
+                modified = true;
                 return;
             }
         }
@@ -83,6 +87,7 @@ public class MutableIR {
         if (!stmts.remove(stmt)) {
             throw new AnalysisException("removeStmt: Statement not found");
         }
+        modified = true;
     }
 
     /**
@@ -98,6 +103,7 @@ public class MutableIR {
         while (iterator.hasNext()) {
             if (iterator.next() == oldStmt) {
                 iterator.set(newStmt);
+                modified = true;
                 return;
             }
         }
@@ -158,7 +164,7 @@ public class MutableIR {
      * Collect all variables used in the IR.
      */
     private List<Var> collectVars() {
-        Set<Var> vars = new LinkedHashSet<>(params);
+        Set<Var> vars = new LinkedHashSet<>(ir.getParams());
 
         // Collect variables from all statements
         for (Stmt stmt : stmts) {
