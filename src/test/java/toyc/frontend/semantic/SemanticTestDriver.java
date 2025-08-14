@@ -1,7 +1,6 @@
 package toyc.frontend.semantic;
 
 import java.io.IOException;
-
 import toyc.ToyCLexer;
 import toyc.ToyCParser;
 import toyc.frontend.util.LexerErrorListener;
