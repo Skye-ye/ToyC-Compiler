@@ -29,10 +29,6 @@ public interface ExpVisitor<T> {
         return visitDefault(exp);
     }
 
-    default T visit(ComparisonExp exp) {
-        return visitDefault(exp);
-    }
-
     default T visit(ConditionExp exp) {
         return visitDefault(exp);
     }

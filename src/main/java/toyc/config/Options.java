@@ -30,7 +30,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * Option class for Tai-e.
+ * Option class for ToyC compiler.
  * We name this class in the plural to avoid name collision with {@link Option}.
  */
 @Command(name = "Options",
