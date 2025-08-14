@@ -14,38 +14,38 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Configuration for an analysis.
+ * Configuration for an algorithm.
  */
 public class AlgorithmConfig {
 
     /**
-     * Description of the analysis.
+     * Description of the algorithm.
      * <p>
-     * This information is only an explanation of the analysis,
-     * and not used by Tai-e.
+     * This information is only an explanation of the algorithm,
+     * and not used by the system.
      */
     @JsonProperty
     private final String description;
 
     /**
-     * Fully-qualified name of the analysis class.
+     * Fully-qualified name of the algorithm class.
      * <p>
      * Here we use String (class name) instead of the Class itself
-     * to represent the analysis for fast startup speed. Our configuration
-     * system will load all analysis configs in the file at each startup.
+     * to represent the algorithm for fast startup speed. Our configuration
+     * system will load all algorithm configs in the file at each startup.
      * If we use Class for this field, then it needs to load all
-     * analysis classes, including the ones that may not be used in this run,
+     * algorithm classes, including the ones that may not be used in this run,
      * which cost more time than merely reading class names.
      */
     @JsonProperty
     private final String algorithmClass;
 
     /**
-     * Unique identifier of the analysis.
+     * Unique identifier of the algorithm.
      * <p>
-     * Tai-e relies on analysis id to identify each analysis, so the id of
-     * each analysis must be unique. If an id is assigned to multiple analyses,
-     * the configuration system will throw {@link ConfigException}.
+     * ToyC compiler relies on algorithm id to identify each algorithm, so the
+     * id of each algorithm must be unique. If an id is assigned to multiple
+     * analyses, the configuration system will throw {@link ConfigException}.
      */
     @JsonProperty
     private final String id;
@@ -60,12 +60,12 @@ public class AlgorithmConfig {
     private final Boolean modification;
 
     /**
-     * Require items of the analysis.
+     * Require items of the algorithm.
      * <p>
      * Each require item contains two part:
-     * 1. analysis id (say A), whose result is required by this analysis.
-     * 2. require conditions, which are relevant to the options of this analysis.
-     * If the conditions are given, then this analysis requires A
+     * 1. algorithm id (say A), whose result is required by this algorithm.
+     * 2. require conditions, which are relevant to the options of this algorithm.
+     * If the conditions are given, then this algorithm requires A
      * only when all conditions are satisfied.
      * <p>
      * We support simple compositions of conditions, and we give some examples
@@ -81,7 +81,7 @@ public class AlgorithmConfig {
     private final List<String> requires;
 
     /**
-     * Options for the analysis.
+     * Options for the algorithm.
      */
     @JsonProperty
     private final AlgorithmOptions options;
@@ -107,7 +107,7 @@ public class AlgorithmConfig {
     }
 
     /**
-     * Convenient static factory for creating an AnalysisConfig by merely
+     * Convenient static factory for creating an algorithmConfig by merely
      * specifying id and options. The given options should be an array
      * of key-value pairs, e.g., [k1, v1, k2, v2, ...].
      */
@@ -118,7 +118,7 @@ public class AlgorithmConfig {
 
     /**
      * Converts an array of key-value pairs (e.g, [k1, v1, k2, v2, ...])
-     * to AnalysisOptions.
+     * to algorithmOptions.
      */
     private static AlgorithmOptions convertOptions(Object[] options) {
         Map<String, Object> optionsMap = Maps.newLinkedHashMap();
@@ -149,7 +149,7 @@ public class AlgorithmConfig {
      * To obtain the real required analyses, you should call
      * {@link ConfigManager#getRequiredConfigs}.
      *
-     * @return require information of this analysis given in configuration files.
+     * @return require information of this algorithm given in configuration files.
      */
     List<String> getRequires() {
         return requires;
@@ -160,7 +160,7 @@ public class AlgorithmConfig {
     }
 
     public String toDetailedString() {
-        return "AnalysisConfig{" +
+        return "algorithmConfig{" +
                 "description='" + description + '\'' +
                 ", algorithmClass='" + algorithmClass + '\'' +
                 ", id='" + id + '\'' +
@@ -176,7 +176,7 @@ public class AlgorithmConfig {
     }
 
     /**
-     * Parses a list of AnalysisConfig from given input stream.
+     * Parses a list of algorithmConfig from given input stream.
      */
     public static List<AlgorithmConfig> parseConfigs(InputStream content) {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
@@ -185,7 +185,7 @@ public class AlgorithmConfig {
         try {
             return mapper.readValue(content, type);
         } catch (IOException e) {
-            throw new ConfigException("Failed to read analysis config file", e);
+            throw new ConfigException("Failed to read algorithm config file", e);
         }
     }
 }

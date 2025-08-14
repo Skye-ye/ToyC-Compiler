@@ -69,4 +69,17 @@ public final class Hashes {
         result = 31 * result + Objects.hashCode(o4);
         return result;
     }
+
+    /**
+     * @return hash code of five objects.
+     * @throws NullPointerException if any parameter is null
+     */
+    public static int hash(Object o1, Object o2, Object o3, Object o4, Object o5) {
+        int result = o1.hashCode();
+        result = 31 * result + o2.hashCode();
+        result = 31 * result + o3.hashCode();
+        result = 31 * result + o4.hashCode();
+        result = 31 * result + o5.hashCode();
+        return result;
+    }
 }

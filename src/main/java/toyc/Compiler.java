@@ -3,6 +3,8 @@ package toyc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import toyc.algorithm.AlgorithmManager;
+import toyc.algorithm.analysis.graph.callgraph.CallGraph;
+import toyc.algorithm.analysis.graph.callgraph.CallGraphBuilder;
 import toyc.config.*;
 import toyc.frontend.cache.CachedWorldBuilder;
 import toyc.ir.IR;
@@ -110,15 +112,33 @@ public class Compiler {
 
     private static void executePlan(Plan plan) {
         AlgorithmManager am = new AlgorithmManager(plan);
-        // TODO: In real use, we should check whether IR has changed
-        for (int i = 0; i < 10; i++) {
-            am.execute();
-        }
+        List<IR> previousIRs = null;
+        List<IR> currentIRs;
+
+        do {
+            currentIRs = am.execute();
+
+            // Check if this is not the first iteration and IR has changed
+            if (previousIRs != null && previousIRs.equals(currentIRs)) {
+                break;
+            }
+
+            previousIRs = currentIRs;
+        } while (true); // Continue until IR stops changing
     }
 
     private static void printIR() {
         System.out.println("\n========== IR Output ==========");
-        for (Function function : World.get().getProgram().allFunctions().toList()) {
+        Scope scope = World.get().getOptions().getScope();
+        List<Function> functionScope = switch (scope) {
+            case ALL -> World.get().getProgram().allFunctions().toList();
+            case REACHABLE -> {
+                CallGraph<?, Function> callGraph =
+                        World.get().getResult(CallGraphBuilder.ID);
+                yield callGraph.reachableFunctions().toList();
+            }
+        };
+        for (Function function : functionScope) {
             IR ir = function.getIR();
             IRPrinter.print(ir, System.out);
             System.out.println();
