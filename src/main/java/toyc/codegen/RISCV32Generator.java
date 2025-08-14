@@ -27,12 +27,35 @@ public class RISCV32Generator implements AssemblyGenerator {
 
     @Override
     public String generateProgramAssembly(Program program) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return generateProgramAssembly(program.allFunctions().toList());
     }
 
     @Override
     public String generateFunctionAssembly(Function function) {
         return generateFunctionAssembly(function.getIR());
+    }
+
+    /**
+     * 为指定的函数列表生成程序汇编代码
+     */
+    public String generateProgramAssembly(List<Function> functions) {
+        StringBuilder sb = new StringBuilder();
+        
+        // 添加汇编文件头部
+        sb.append("# Generated RISC-V 32-bit assembly code\n");
+        sb.append("# Target: RISC-V 32-bit\n\n");
+        
+        // 添加段声明
+        sb.append(".text\n");
+        sb.append(".align 2\n\n");
+        
+        // 生成所有函数的汇编代码
+        for (Function function : functions) {
+            sb.append(generateFunctionAssembly(function));
+            sb.append("\n"); // 函数之间添加空行
+        }
+        
+        return sb.toString();
     }
 
     @Override
@@ -376,15 +399,30 @@ public class RISCV32Generator implements AssemblyGenerator {
 
         @Override
         public Void visit(If stmt) {
-            // Handle conditional jumps
-            // For now, just add a placeholder - full implementation would need condition evaluation
-            
-            String condReg = loadOperand(stmt.getCondition());
+            // Handle conditional jumps based on condition expression type
             String targetLabel = getOrCreateLabel(stmt.getTarget());
+            RValue condition = stmt.getCondition();
             
-            // 如果条件为真，跳转到目标标签
-            builder.bnez(condReg, targetLabel);
-            
+            if (condition instanceof BinaryExp binaryExp && 
+                binaryExp.getOperator() instanceof ConditionExp.Op condOp) {
+                
+                // 对于比较操作，直接生成对应的分支指令
+                String src1 = loadOperand(binaryExp.getOperand1());
+                String src2 = loadOperand(binaryExp.getOperand2());
+                
+                switch (condOp) {
+                    case EQ -> builder.beq(src1, src2, targetLabel);
+                    case NE -> builder.bne(src1, src2, targetLabel);
+                    case LT -> builder.blt(src1, src2, targetLabel);
+                    case GE -> builder.bge(src1, src2, targetLabel);
+                    case GT -> builder.blt(src2, src1, targetLabel); // 交换操作数：src2 < src1 等价于 src1 > src2
+                    case LE -> builder.bge(src2, src1, targetLabel); // 交换操作数：src2 >= src1 等价于 src1 <= src2
+                }
+            } else {
+                // 对于其他类型的条件（变量或复杂表达式的结果），使用 bnez
+                String condReg = loadOperand(condition);
+                builder.bnez(condReg, targetLabel);
+            }
             return null;
         }
 
