@@ -59,7 +59,7 @@ public class CodegenTest {
         
         // Test with RISCV32 generator
         RISCV32Generator generator = new RISCV32Generator();
-        String assembly = generator.generateFunctionAssembly(function);
+        String assembly = generator.generateFunctionAssembly(ir);
         
         System.out.println("Generated RISC-V assembly:");
         System.out.println(assembly);
@@ -111,7 +111,7 @@ public class CodegenTest {
         
         // Test with RISCV32 generator
         RISCV32Generator generator = new RISCV32Generator();
-        String assembly = generator.generateFunctionAssembly(mainFunc);
+        String assembly = generator.generateFunctionAssembly(ir);
         
         System.out.println("Generated RISC-V assembly:");
         System.out.println(assembly);
@@ -170,7 +170,7 @@ public class CodegenTest {
         
         // Test with RISCV32 generator
         RISCV32Generator generator = new RISCV32Generator();
-        String assembly = generator.generateFunctionAssembly(function);
+        String assembly = generator.generateFunctionAssembly(ir);
         
         System.out.println("Generated RISC-V assembly:");
         System.out.println(assembly);
@@ -214,7 +214,7 @@ public class CodegenTest {
         
         // Test with RISCV32 generator
         RISCV32Generator generator = new RISCV32Generator();
-        String assembly = generator.generateFunctionAssembly(function);
+        String assembly = generator.generateFunctionAssembly(ir);
         
         System.out.println("Generated RISC-V assembly:");
         System.out.println(assembly);
@@ -254,7 +254,7 @@ public class CodegenTest {
         
         // Test with RISCV32 generator
         RISCV32Generator generator = new RISCV32Generator();
-        String assembly = generator.generateFunctionAssembly(function);
+        String assembly = generator.generateFunctionAssembly(ir);
         
         System.out.println("Generated RISC-V assembly:");
         System.out.println(assembly);
@@ -293,7 +293,7 @@ public class CodegenTest {
         
         // Test with RISCV32 generator
         RISCV32Generator generator = new RISCV32Generator();
-        String assembly = generator.generateFunctionAssembly(function);
+        String assembly = generator.generateFunctionAssembly(ir);
         
         System.out.println("Generated RISC-V assembly:");
         System.out.println(assembly);
@@ -324,7 +324,7 @@ public class CodegenTest {
         
         // Test with RISCV32 generator
         RISCV32Generator generator = new RISCV32Generator();
-        String assembly = generator.generateFunctionAssembly(function);
+        String assembly = generator.generateFunctionAssembly(ir);
         
         System.out.println("Generated RISC-V assembly:");
         System.out.println(assembly);
@@ -376,7 +376,7 @@ public class CodegenTest {
         
         // Test with RISCV32 generator
         RISCV32Generator generator = new RISCV32Generator();
-        String assembly = generator.generateFunctionAssembly(function);
+        String assembly = generator.generateFunctionAssembly(ir);
         
         System.out.println("Generated RISC-V assembly:");
         System.out.println(assembly);
@@ -429,7 +429,7 @@ public class CodegenTest {
         
         // Test with stack-only allocation (should use stack for all variables)
         RISCV32Generator generator = new RISCV32Generator();
-        String assembly = generator.generateFunctionAssembly(function);
+        String assembly = generator.generateFunctionAssembly(ir);
         
         System.out.println("Generated RISC-V assembly (many local variables):");
         System.out.println(assembly);
@@ -457,7 +457,7 @@ public class CodegenTest {
         IR emptyIR = new DefaultIR(emptyFunc, List.of(), Set.of(), List.of(), emptyStmts);
         
         RISCV32Generator generator = new RISCV32Generator();
-        String emptyAssembly = generator.generateFunctionAssembly(emptyFunc);
+        String emptyAssembly = generator.generateFunctionAssembly(emptyIR);
         System.out.println(emptyAssembly);
         
         // Test 2: Function with zero values
@@ -474,7 +474,7 @@ public class CodegenTest {
         }
         
         IR zeroIR = new DefaultIR(zeroFunc, List.of(), Set.of(zero), List.of(zero), zeroStmts);
-        String zeroAssembly = generator.generateFunctionAssembly(zeroFunc);
+        String zeroAssembly = generator.generateFunctionAssembly(zeroIR);
         System.out.println(zeroAssembly);
         
         // Test 3: Large immediate values
@@ -491,7 +491,7 @@ public class CodegenTest {
         }
         
         IR largeIR = new DefaultIR(largeFunc, List.of(), Set.of(large), List.of(large), largeStmts);
-        String largeAssembly = generator.generateFunctionAssembly(largeFunc);
+        String largeAssembly = generator.generateFunctionAssembly(largeIR);
         System.out.println(largeAssembly);
         
         System.out.println();
@@ -526,41 +526,41 @@ public class CodegenTest {
         IR archIR = new DefaultIR(archFunc, List.of(), Set.of(result), List.of(result), stmts);
         
         System.out.println("Sample code generation for architecture framework:");
-        String assembly = riscvGen.generateFunctionAssembly(archFunc);
+        String assembly = riscvGen.generateFunctionAssembly(archIR);
         System.out.println(assembly);
     }
 
-    /**
-     * Demonstration of how the framework could be extended for other architectures
-     * (This is a mock implementation for demonstration purposes)
-     */
-    public static class MockX86Generator implements AssemblyGenerator {
-        public static final TargetArchitecture.Architecture ARCH = 
-                TargetArchitecture.Architecture.X86_32;
+    // /**
+    //  * Demonstration of how the framework could be extended for other architectures
+    //  * (This is a mock implementation for demonstration purposes)
+    //  */
+    // public static class MockX86Generator implements AssemblyGenerator {
+    //     public static final TargetArchitecture.Architecture ARCH = 
+    //             TargetArchitecture.Architecture.X86_32;
                 
-        @Override
-        public String generateProgramAssembly(toyc.language.Program program) {
-            throw new UnsupportedOperationException("Program assembly not implemented yet");
-        }
+    //     @Override
+    //     public String generateProgramAssembly(toyc.language.Program program) {
+    //         throw new UnsupportedOperationException("Program assembly not implemented yet");
+    //     }
         
-        @Override
-        public String generateFunctionAssembly(toyc.language.Function function) {
-            // Mock implementation - would normally generate x86 assembly
-            StringBuilder sb = new StringBuilder();
-            sb.append("; Mock x86-32 assembly for function: ").append(function.getName()).append("\n");
-            sb.append("section .text\n");
-            sb.append("global ").append(function.getName()).append("\n");
-            sb.append(function.getName()).append(":\n");
-            sb.append("    ; Mock x86 instructions would go here\n");
-            sb.append("    push ebp\n");
-            sb.append("    mov ebp, esp\n");
-            sb.append("    ; ... function body ...\n");
-            sb.append("    mov esp, ebp\n");
-            sb.append("    pop ebp\n");
-            sb.append("    ret\n");
-            return sb.toString();
-        }
-    }
+    //     @Override
+    //     public String generateFunctionAssembly(toyc.language.Function function) {
+    //         // Mock implementation - would normally generate x86 assembly
+    //         StringBuilder sb = new StringBuilder();
+    //         sb.append("; Mock x86-32 assembly for function: ").append(function.getName()).append("\n");
+    //         sb.append("section .text\n");
+    //         sb.append("global ").append(function.getName()).append("\n");
+    //         sb.append(function.getName()).append(":\n");
+    //         sb.append("    ; Mock x86 instructions would go here\n");
+    //         sb.append("    push ebp\n");
+    //         sb.append("    mov ebp, esp\n");
+    //         sb.append("    ; ... function body ...\n");
+    //         sb.append("    mov esp, ebp\n");
+    //         sb.append("    pop ebp\n");
+    //         sb.append("    ret\n");
+    //         return sb.toString();
+    //     }
+    // }
 
     /**
      * Test the extensibility of the architecture framework with a mock generator

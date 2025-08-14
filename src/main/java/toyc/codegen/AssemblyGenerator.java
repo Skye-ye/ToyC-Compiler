@@ -1,6 +1,7 @@
 package toyc.codegen;
 
 import toyc.language.Function;
+import toyc.ir.IR;
 import toyc.language.Program;
 
 import java.lang.reflect.Field;
@@ -37,6 +38,14 @@ public interface AssemblyGenerator {
      * @return the generated assembly code as a string
      */
     String generateFunctionAssembly(Function function);
+
+    /**
+     * Generates the prologue for a function in assembly code.
+     *
+     * @param ir the intermediate representation of the function
+     * @return the assembly code for the function prologue
+     */
+    String generateFunctionAssembly(IR ir);
 
     /**
      * Returns the target architecture for which this generator is designed.

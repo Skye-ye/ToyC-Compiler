@@ -32,7 +32,13 @@ public class RISCV32Generator implements AssemblyGenerator {
 
     @Override
     public String generateFunctionAssembly(Function function) {
-        IR ir = function.getIR();
+        return generateFunctionAssembly(function.getIR());
+    }
+
+    @Override
+    public String generateFunctionAssembly(IR ir) {
+        // IR ir = function.getIR();
+        Function function = ir.getFunction();  // 确保使用 IR 中的函数定义
         RISCV32AsmBuilder builder = new RISCV32AsmBuilder();
 
         // Create a simple register allocator - for now, use a basic set of intervals
