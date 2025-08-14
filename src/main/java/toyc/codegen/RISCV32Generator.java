@@ -27,12 +27,35 @@ public class RISCV32Generator implements AssemblyGenerator {
 
     @Override
     public String generateProgramAssembly(Program program) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return generateProgramAssembly(program.allFunctions().toList());
     }
 
     @Override
     public String generateFunctionAssembly(Function function) {
         return generateFunctionAssembly(function.getIR());
+    }
+
+    /**
+     * 为指定的函数列表生成程序汇编代码
+     */
+    public String generateProgramAssembly(List<Function> functions) {
+        StringBuilder sb = new StringBuilder();
+        
+        // 添加汇编文件头部
+        sb.append("# Generated RISC-V 32-bit assembly code\n");
+        sb.append("# Target: RISC-V 32-bit\n\n");
+        
+        // 添加段声明
+        sb.append(".text\n");
+        sb.append(".align 2\n\n");
+        
+        // 生成所有函数的汇编代码
+        for (Function function : functions) {
+            sb.append(generateFunctionAssembly(function));
+            sb.append("\n"); // 函数之间添加空行
+        }
+        
+        return sb.toString();
     }
 
     @Override
