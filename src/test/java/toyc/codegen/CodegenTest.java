@@ -1,9 +1,11 @@
 package toyc.codegen;
 
+// import org.antlr.runtime.SerializedGrammar.Block;
 import org.junit.jupiter.api.Test;
 import toyc.codegen.regalloc.LinearScanAllocator;
 import toyc.codegen.regalloc.StackOnlyAllocator;
 import toyc.ir.DefaultIR;
+import toyc.ir.IRPrinter;
 import toyc.ir.IR;
 import toyc.ir.exp.*;
 import toyc.ir.stmt.*;
@@ -586,6 +588,152 @@ public class CodegenTest {
     /**
      * Run all tests to demonstrate different code generation scenarios
      */
+
+    @Test
+    public void testIfGoto() {
+        System.out.println("=== Test: If-Goto ===");
+        Function func = new Function("ifgoto", List.of(IntType.INT), IntType.INT, List.of("x"));
+        Var x = new Var(func, "x", IntType.INT, 0);
+        Var y = new Var(func, "y", IntType.INT, 1);
+        Var ten = new Var(func, "ten", IntType.INT, 2);
+        Var one = new Var(func, "one", IntType.INT, 3);
+        Var two = new Var(func, "two", IntType.INT, 4);
+
+        // y = 0;
+        AssignLiteral assignY0 = new AssignLiteral(y, IntLiteral.get(0));
+        assignY0.setIndex(0);
+
+        // ten = 10; one = 1; two = 2;
+        AssignLiteral assignTen = new AssignLiteral(ten, IntLiteral.get(10));
+        assignTen.setIndex(1);
+        AssignLiteral assignOne = new AssignLiteral(one, IntLiteral.get(1));
+        assignOne.setIndex(2);
+        AssignLiteral assignTwo = new AssignLiteral(two, IntLiteral.get(2));
+        assignTwo.setIndex(3);
+
+        // if (x < ten) goto label1;
+        ConditionExp cond = new ConditionExp(ConditionExp.Op.LT, x, ten);
+        If ifStmt = new If(cond);
+        ifStmt.setIndex(4);
+
+        // y = one; (label1)
+        Copy assignY1 = new Copy(y, one);
+        assignY1.setIndex(5);
+
+        // y = two; (label2)
+        Copy assignY2 = new Copy(y, two);
+        assignY2.setIndex(6);
+
+        // return y;
+        Return ret = new Return(y);
+        ret.setIndex(7);
+
+        // 设置跳转目标
+        ifStmt.setTarget(assignY1);
+
+        List<Stmt> stmts = List.of(assignY0, assignTen, assignOne, assignTwo, ifStmt, assignY1, assignY2, ret);
+
+        IR ir = new DefaultIR(func, List.of(x), Set.of(y), List.of(x, y, ten, one, two), stmts);
+        // IRPrinter.print(ir, System.out);
+
+        RISCV32Generator generator = new RISCV32Generator();
+        String assembly = generator.generateFunctionAssembly(ir);
+        System.out.println(assembly);
+    }
+
+    @Test
+    public void testWhileLoop() {
+        System.out.println("=== Test: While Loop ===");
+        Function func = new Function("whileloop", List.of(IntType.INT), IntType.INT, List.of("n"));
+        Var n = new Var(func, "n", IntType.INT, 0);
+        Var sum = new Var(func, "sum", IntType.INT, 1);
+        Var zero = new Var(func, "zero", IntType.INT, 2);
+        Var one = new Var(func, "one", IntType.INT, 3);
+
+        // sum = 0;
+        AssignLiteral assignSum0 = new AssignLiteral(sum, IntLiteral.get(0));
+        assignSum0.setIndex(0);
+
+        // zero = 0; one = 1;
+        AssignLiteral assignZero = new AssignLiteral(zero, IntLiteral.get(0));
+        assignZero.setIndex(1);
+        AssignLiteral assignOne = new AssignLiteral(one, IntLiteral.get(1));
+        assignOne.setIndex(2);
+
+        // label_loop:
+        // if (n <= zero) goto label_end;
+        ConditionExp cond = new ConditionExp(ConditionExp.Op.LE, n, zero);
+        If ifEnd = new If(cond);
+        ifEnd.setIndex(3);
+
+        // sum = sum + n;
+        ArithmeticExp addExp = new ArithmeticExp(ArithmeticExp.Op.ADD, sum, n);
+        Binary sumAdd = new Binary(sum, addExp);
+        sumAdd.setIndex(4);
+
+        // n = n - one;
+        ArithmeticExp subExp = new ArithmeticExp(ArithmeticExp.Op.SUB, n, one);
+        Binary nDec = new Binary(n, subExp);
+        nDec.setIndex(5);
+
+        // goto label_loop;
+        Goto gotoLoop = new Goto();
+        gotoLoop.setIndex(6);
+
+        // label_end:
+        Return ret = new Return(sum);
+        ret.setIndex(7);
+
+        // 设置跳转目标
+        ifEnd.setTarget(ret);
+        gotoLoop.setTarget(ifEnd);
+
+        List<Stmt> stmts = List.of(assignSum0, assignZero, assignOne, ifEnd, sumAdd, nDec, gotoLoop, ret);
+
+        IR ir = new DefaultIR(func, List.of(n), Set.of(sum), List.of(n, sum, zero, one), stmts);
+
+        RISCV32Generator generator = new RISCV32Generator();
+        String assembly = generator.generateFunctionAssembly(ir);
+        System.out.println(assembly);
+    }
+
+    @Test
+    public void testComplexExpression() {
+        System.out.println("=== Test: Complex Expression ===");
+        Function func = new Function("complex", List.of(IntType.INT, IntType.INT), IntType.INT, List.of("a", "b"));
+        Var a = new Var(func, "a", IntType.INT, 0);
+        Var b = new Var(func, "b", IntType.INT, 1);
+        Var temp1 = new Var(func, "temp1", IntType.INT, 2);
+        Var temp2 = new Var(func, "temp2", IntType.INT, 3);
+        Var result = new Var(func, "result", IntType.INT, 4);
+
+        // temp1 = a + b
+        ArithmeticExp add = new ArithmeticExp(ArithmeticExp.Op.ADD, a, b);
+        Binary assignAdd = new Binary(temp1, add);
+        assignAdd.setIndex(0);
+
+        // temp2 = a - b
+        ArithmeticExp sub = new ArithmeticExp(ArithmeticExp.Op.SUB, a, b);
+        Binary assignSub = new Binary(temp2, sub);
+        assignSub.setIndex(1);
+
+        // result = temp1 * temp2
+        ArithmeticExp mul = new ArithmeticExp(ArithmeticExp.Op.MUL, temp1, temp2);
+        Binary assignMul = new Binary(result, mul);
+        assignMul.setIndex(2);
+
+        Return ret = new Return(result);
+        ret.setIndex(3);
+
+        List<Stmt> stmts = List.of(assignAdd, assignSub, assignMul, ret);
+
+        IR ir = new DefaultIR(func, List.of(a, b), Set.of(result), List.of(a, b, temp1, temp2, result), stmts);
+
+        RISCV32Generator generator = new RISCV32Generator();
+        String assembly = generator.generateFunctionAssembly(ir);
+        System.out.println(assembly);
+    }
+
     @Test
     public void runAllCodegenTests() {
         testSimpleArithmetic();
