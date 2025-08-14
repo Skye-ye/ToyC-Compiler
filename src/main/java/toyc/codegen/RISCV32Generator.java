@@ -54,6 +54,8 @@ public class RISCV32Generator implements AssemblyGenerator {
         // 计算总栈帧大小，确保 16 字节对齐
         int totalStackSize = (stackSize + saveSize + 15) & ~15;
 
+        String functionExitLabel = function.getName() + "_exit";
+
         builder.addGlobalFunc(function.getName());
 
         // --- Prologue ---
@@ -73,10 +75,11 @@ public class RISCV32Generator implements AssemblyGenerator {
         
         // --- Function Body ---
         // Generate code for each statement using visitor pattern
-        StmtCodeGenerator codeGen = new StmtCodeGenerator(builder, allocator);
+        StmtCodeGenerator codeGen = new StmtCodeGenerator(builder, allocator, functionExitLabel);
         codeGen.generateCode(ir.getStmts()); // 使用新的generateCode方法
 
         // --- Epilogue ---
+        builder.label(functionExitLabel);
         if (totalStackSize > 0 || !savedRegs.isEmpty()) {
             builder.comment("Function epilogue - restore registers and deallocate stack");
             int saveOffset = stackSize;
@@ -136,12 +139,14 @@ public class RISCV32Generator implements AssemblyGenerator {
         private final RISCV32AsmBuilder builder;
         private final RegisterAllocator allocator;
         private final Map<Stmt, String> stmtLabels;
+        private final String functionExitLabel;
         private int labelCounter = 0;
 
-        public StmtCodeGenerator(RISCV32AsmBuilder builder, RegisterAllocator allocator) {
+        public StmtCodeGenerator(RISCV32AsmBuilder builder, RegisterAllocator allocator, String functionExitLabel) {
             this.builder = builder;
             this.allocator = allocator;
             this.stmtLabels = new HashMap<>();
+            this.functionExitLabel = functionExitLabel;
         }
 
         /**
@@ -183,6 +188,11 @@ public class RISCV32Generator implements AssemblyGenerator {
                 // 生成语句代码
                 stmt.accept(this);
             }
+            // 如果函数末尾没有return语句，添加一个跳转到退出点
+            // 这确保所有执行路径都通过统一的退出点
+            if (!stmts.isEmpty() && !(stmts.get(stmts.size() - 1) instanceof Return)) {
+                builder.j(functionExitLabel);
+    }
         }
         
 
@@ -286,18 +296,41 @@ public class RISCV32Generator implements AssemblyGenerator {
             CallExp callExp = stmt.getCallExp();
             Function callee = callExp.getFunction();
 
+            // 计算需要通过栈传递的参数数量和空间
+            int argCount = callExp.getArgCount();
+            int stackArgCount = Math.max(0, argCount - 8); // 超过8个的参数需要通过栈传递
+            int stackArgSize = stackArgCount * 4; // 每个参数4字节
+
+            // 为栈参数分配空间（从高地址向低地址分配）
+            if (stackArgSize > 0) {
+                builder.addi("sp", "sp", String.valueOf(-stackArgSize));
+            }
+
             // Calling Convention:
             // Load arguments into argument registers (a0, a1, ...)
             for (int i = 0; i < callExp.getArgCount(); i++) {
                 Var arg = callExp.getArg(i);
-                String argReg = "a" + i;
                 String srcReg = loadOperand(arg);
-                if (!srcReg.equals(argReg)) {
-                    builder.mv(argReg, srcReg);
+
+                if(i < 8) {
+                    String argReg = "a" + i;
+                    if (!srcReg.equals(argReg)) {
+                        builder.mv(argReg, srcReg);
+                    }
+                }
+                else {
+                    // 超过8个的参数：压入栈中
+                    // 栈参数从低偏移开始存放：第9个参数在sp+0，第10个在sp+4，依此类推
+                    int stackOffset = (i - 8) * 4;
+                    builder.store("sw", srcReg, stackOffset, "sp");
                 }
             }
 
             builder.call(callee.getName());
+
+            if (stackArgSize > 0) {
+                builder.addi("sp", "sp", String.valueOf(stackArgSize));
+            }
 
             // Store return value if needed
             if (stmt.getResult() != null) {
@@ -320,6 +353,7 @@ public class RISCV32Generator implements AssemblyGenerator {
                     builder.mv("a0", srcReg);
                 }
             }
+            builder.j(functionExitLabel); // Jump to function exit label
             return null;
         }
 
@@ -404,36 +438,36 @@ public class RISCV32Generator implements AssemblyGenerator {
          * Map binary expression operators to RISC-V instructions.
          * This function seems useless now!
          */
-        private String getRISCVOp(BinaryExp.Op op) {
-            if (op instanceof ArithmeticExp.Op arithOp) {
-                return switch (arithOp) {
-                    case ADD -> "add";
-                    case SUB -> "sub";
-                    case MUL -> "mul";
-                    case DIV -> "div";
-                    case REM -> "rem";
-                };
-            } else if (op instanceof ConditionExp.Op condOp) {
-                return switch (condOp) {
-                    case EQ -> "seq";   // Set if equal (pseudo-instruction)
-                    case NE -> "sne";   // Set if not equal (pseudo-instruction)
-                    case LT -> "slt";   // Set if less than
-                    case LE ->
-                            "sle";   // Set if less than or equal (pseudo-instruction)
-                    case GT ->
-                            "sgt";   // Set if greater than (pseudo-instruction)
-                    case GE ->
-                            "sge";   // Set if greater than or equal (pseudo-instruction)
-                };
-            } else if (op instanceof ComparisonExp.Op compOp) {
-                return switch (compOp) {
-                    case CMP -> "cmp";      // Generic compare
-                    case CMPL -> "cmpl";    // Compare with less bias
-                    case CMPG -> "cmpg";    // Compare with greater bias
-                };
-            }
+        // private String getRISCVOp(BinaryExp.Op op) {
+        //     if (op instanceof ArithmeticExp.Op arithOp) {
+        //         return switch (arithOp) {
+        //             case ADD -> "add";
+        //             case SUB -> "sub";
+        //             case MUL -> "mul";
+        //             case DIV -> "div";
+        //             case REM -> "rem";
+        //         };
+        //     } else if (op instanceof ConditionExp.Op condOp) {
+        //         return switch (condOp) {
+        //             case EQ -> "seq";   // Set if equal (pseudo-instruction)
+        //             case NE -> "sne";   // Set if not equal (pseudo-instruction)
+        //             case LT -> "slt";   // Set if less than
+        //             case LE ->
+        //                     "sle";   // Set if less than or equal (pseudo-instruction)
+        //             case GT ->
+        //                     "sgt";   // Set if greater than (pseudo-instruction)
+        //             case GE ->
+        //                     "sge";   // Set if greater than or equal (pseudo-instruction)
+        //         };
+        //     } else if (op instanceof ComparisonExp.Op compOp) {
+        //         return switch (compOp) {
+        //             case CMP -> "cmp";      // Generic compare
+        //             case CMPL -> "cmpl";    // Compare with less bias
+        //             case CMPG -> "cmpg";    // Compare with greater bias
+        //         };
+        //     }
 
-            throw new IllegalArgumentException("Unsupported binary operation: " + op);
-        }
+        //     throw new IllegalArgumentException("Unsupported binary operation: " + op);
+        // }
     }
 }
