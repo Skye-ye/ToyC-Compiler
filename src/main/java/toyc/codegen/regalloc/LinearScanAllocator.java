@@ -16,7 +16,7 @@ public class LinearScanAllocator implements RegisterAllocator {
     private static final int NUM_REGISTERS = REGISTERS.length;
 
     private final Map<String, LocalDataLocation> varToLocation;
-    private final Set<LiveInterval> intervals;
+    private final ArrayList<LiveInterval> intervals;
     private final Set<LiveInterval> activeSortedByEnd;
     private final Set<Integer> freeTRegisters;
     private final Set<Integer> freeSRegisters;
@@ -24,8 +24,9 @@ public class LinearScanAllocator implements RegisterAllocator {
     private int currentOffset = 0;
 
     public LinearScanAllocator(Set<LiveInterval> intervals) {
-        this.intervals = new TreeSet<>(Comparator.comparingInt(LiveInterval::getStart));
-        this.intervals.addAll(intervals);
+        this.intervals = new ArrayList<LiveInterval>(intervals);
+        this.intervals.sort(Comparator.comparingInt(LiveInterval::getStart));
+        // System.out.println("LinearScanAllocator initialized with intervals: " + this.intervals);
         this.varToLocation = new HashMap<>();
         this.activeSortedByEnd = new TreeSet<>((a, b) -> {
             int endCompare = Integer.compare(a.getEnd(), b.getEnd());
@@ -46,7 +47,12 @@ public class LinearScanAllocator implements RegisterAllocator {
 
     @Override
     public LocalDataLocation allocate(String varName) {
-        return varToLocation.get(varName);
+        // return varToLocation.get(varName);
+        LocalDataLocation location = varToLocation.get(varName);
+        if (location == null) {
+            System.err.println("allocate() failed for var: " + varName + ", varToLocation keys: " + varToLocation.keySet());
+        }
+        return location;
     }
 
     @Override

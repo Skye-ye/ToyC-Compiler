@@ -121,6 +121,7 @@ public class RISCV32Generator implements AssemblyGenerator {
                     String var = v.getName();
                     firstUse.putIfAbsent(var, pos);
                     lastUse.put(var, pos);
+                    // System.out.println("Use variable: " + var + " at position: " + pos);
                 }
             }
             // 处理被定义的变量
@@ -134,6 +135,7 @@ public class RISCV32Generator implements AssemblyGenerator {
         Set<LiveInterval> intervals = new HashSet<>();
         for (String var : firstUse.keySet()) {
             intervals.add(new LiveInterval(firstUse.get(var), lastUse.get(var), var));
+            // System.out.println("Live interval for variable: " + var + " from " + firstUse.get(var) + " to " + lastUse.get(var));
         }
         return intervals;
     }
@@ -426,6 +428,9 @@ public class RISCV32Generator implements AssemblyGenerator {
                 }
 
                 LocalDataLocation location = allocator.allocate(var.getName());
+                if (location == null) {
+                    throw new IllegalStateException("No location allocated for variable: " + var.getName());
+                }
                 if (location.getType() == LocalDataLocation.LocationType.STACK) {
                     builder.load("lw", "t0", location.getOffset(), "sp");
                     return "t0";
