@@ -71,7 +71,7 @@
   algorithmClass: toyc.algorithm.analysis.deadcode.DeadCodeDetection
   id: dead-code
   modification: false
-  requires: [ cfg,const-prop,live-var ]
+  requires: [ cfg,inter-const-prop,live-var ]
 
 - description: common subexpression detection
   algorithmClass: toyc.algorithm.analysis.dataflow.analysis.csd.CommonSubexpressionDetection
@@ -80,6 +80,12 @@
   requires: [ cfg,const-prop ]
   options:
     dump: true # whether dump CSE results
+
+- description: function inlining detection
+  algorithmClass: toyc.algorithm.analysis.inline.FunctionInliningDetection
+  id: func-inline
+  modification: false
+  requires: []
 
 - description: constant folding
   algorithmClass: toyc.algorithm.optimization.ConstantFolding
@@ -98,6 +104,12 @@
   id: cse
   modification: true
   requires: [ csd ]
+
+- description: function inlining
+  algorithmClass: toyc.algorithm.optimization.FunctionInlining
+  id: func-inline-opt
+  modification: true
+  requires: [ func-inline ]
 
 - description: process results of previously-run analyses
   algorithmClass: toyc.algorithm.analysis.ResultProcessor

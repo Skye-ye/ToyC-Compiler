@@ -79,6 +79,34 @@ public class IROperation {
     }
 
     /**
+     * Replace the specified statement with a list of new statements in the IR.
+     * If the statement to be replaced is a target of other statements (e.g., Goto, If),
+     * it updates those statements to point to the first new statement.
+     *
+     * @param stmt      the statement to replace
+     * @param newStmts  the list of new statements to insert
+     */
+    public void replace(@Nonnull Stmt stmt, @Nonnull List<Stmt> newStmts) {
+        Stmt firstStmt = newStmts.getFirst();
+        for (Stmt newStmt : newStmts) {
+            newStmt.setLineNumber(stmt.getLineNumber());
+            ir.insertBefore(stmt, newStmt);
+        }
+        updateTargets(stmt, firstStmt);
+        ir.removeStmt(stmt);
+    }
+
+    /**
+     * Get the next statement after the specified statement in the IR.
+     *
+     * @param stmt the statement for which to find the next statement
+     * @return the next statement, or null if there is no next statement
+     */
+    public Stmt getNextStmt(@Nonnull Stmt stmt) {
+        return ir.getNextStmt(stmt);
+    }
+
+    /**
      * Get the current IR as an immutable copy.
      */
     @Nonnull

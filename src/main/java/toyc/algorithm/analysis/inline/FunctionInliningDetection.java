@@ -4,6 +4,7 @@ import toyc.algorithm.analysis.FunctionAnalysis;
 import toyc.config.AlgorithmConfig;
 import toyc.ir.IR;
 import toyc.ir.stmt.Call;
+import toyc.language.Function;
 
 import java.util.Set;
 
@@ -19,9 +20,10 @@ public class FunctionInliningDetection extends FunctionAnalysis<Set<Call>>
 
     @Override
     public Set<Call> analyze(IR ir) {
+        Function function = ir.getFunction();
         // For now, we regard all calls that are not self-recursive as candidates for inlining.
         return ir.calls()
-                .filter(call -> !call.getCallExp().getFunction().equals(ir.getFunction()))
+                .filter(call -> !call.getCallExp().getFunction().equals(function))
                 .collect(toSet());
     }
 }

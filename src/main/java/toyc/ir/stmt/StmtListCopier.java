@@ -1,8 +1,9 @@
-package toyc.ir;
+package toyc.ir.stmt;
 
 import toyc.ir.exp.*;
-import toyc.ir.stmt.*;
+import toyc.language.Function;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -20,18 +21,19 @@ public class StmtListCopier {
      * This is the main method for copying statements.
      *
      * @param originalStmts the statements to copy
-     * @param originalVars  the original variables used in the statements
+     * @param varMapping the mapping from original variables to new variables
+     * @param targetFunction the target function for copied stmts
      * @return copied statements with consistent variable references
      */
     public static List<Stmt> copy(List<Stmt> originalStmts,
-                                  List<Var> originalVars) {
+                                  Map<Var, Var> varMapping,
+                                  @Nullable Function targetFunction) {
         if (originalStmts.isEmpty()) {
             return new ArrayList<>();
         }
 
         // create variable mapping
-        Map<Var, Var> varMapping = createVariableMapping(originalVars);
-        StmtCopier copier = new StmtCopier(varMapping);
+        StmtCopier copier = new StmtCopier(varMapping, targetFunction);
 
         // clone statements with variable mapping
         List<Stmt> clonedStmts = new ArrayList<>();
@@ -59,33 +61,17 @@ public class StmtListCopier {
         return clonedStmts;
     }
 
-    /**
-     * Extract all variables from statements and create mapping to cloned variables
-     */
-    private static Map<Var, Var> createVariableMapping(List<Var> originalVars) {
-        // Create mapping from original to cloned variables
-        Map<Var, Var> varMapping = new HashMap<>();
-        for (Var originalVar : originalVars) {
-            Var clonedVar = new Var(
-                    originalVar.getFunction(),
-                    originalVar.getName(),
-                    originalVar.getType(),
-                    originalVar.getIndex(),
-                    originalVar.isConst() ? originalVar.getConstValue() : null);
-            varMapping.put(originalVar, clonedVar);
-        }
-
-        return varMapping;
-    }
-
     private static class StmtCopier implements StmtVisitor<Stmt> {
 
         private final Map<Var, Var> varMapping;
 
+        private final Function targetFunction;
+
         ExpCopier expCopier;
 
-        public StmtCopier(Map<Var, Var> varMapping) {
+        public StmtCopier(Map<Var, Var> varMapping, Function targetFunction) {
             this.varMapping = varMapping;
+            this.targetFunction = targetFunction;
             expCopier = new ExpCopier(varMapping);
         }
 
@@ -130,7 +116,8 @@ public class StmtListCopier {
         @Override
         public Stmt visit(Call stmt) {
             return new Call(
-                    stmt.getContainer(),
+                    targetFunction != null ? targetFunction :
+                            stmt.getContainer(),
                     (CallExp) stmt.getCallExp().accept(expCopier),
                     stmt.getResult() == null ? null : varMapping.get(stmt.getResult()));
         }

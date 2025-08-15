@@ -1,6 +1,6 @@
 optionsFile: null
 printHelp: false
-inputFile: src/test/resources/toyc/oj/05_function_call.tc
+inputFile: src/test/resources/toyc/oj/16_complex_syntax.tc
 worldBuilderClass: toyc.frontend.ToyCWorldBuilder
 outputDir: output
 preBuildIR: false
@@ -11,5 +11,6 @@ onlyGenPlan: false
 analyses:
   const-fold: ""
   dead-code-elim: ""
+  func-inline-opt: ""
 keepResult:
   - $KEEP-ALL

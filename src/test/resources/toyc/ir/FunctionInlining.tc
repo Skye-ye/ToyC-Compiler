@@ -1,0 +1,12 @@
+int choice(int x) {
+  if (x > 0) {
+    return x + 1;
+  } else {
+    return x - 1;
+  }
+}
+
+int main() {
+  int a = choice(4);
+  return a;
+}
