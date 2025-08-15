@@ -42,8 +42,8 @@ public class RISCV32Generator implements AssemblyGenerator {
         StringBuilder sb = new StringBuilder();
         
         // 添加汇编文件头部
-        sb.append("# Generated RISC-V 32-bit assembly code\n");
-        sb.append("# Target: RISC-V 32-bit\n\n");
+        // sb.append("# Generated RISC-V 32-bit assembly code\n");
+        // sb.append("# Target: RISC-V 32-bit\n\n");
         
         // 添加段声明
         sb.append(".text\n");

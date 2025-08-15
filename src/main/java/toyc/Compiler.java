@@ -26,7 +26,7 @@ public class Compiler {
     public static void main(String... args) throws IOException {
         Timer.runAndCount(() -> {
             // For OJ submission, ignore command line args
-            Options options = processArgs();
+            Options options = processArgs(args);
             // Only proceed with analysis if not showing help
             LoggerConfigs.setOutput(options.getOutputDir());
             Plan plan = processConfigs(options);
@@ -43,6 +43,13 @@ public class Compiler {
     }
 
     private static Options processArgs(String... args) {
+        // Check if -opt parameter is provided (for OJ compatibility)
+        for (String arg : args) {
+            if ("-opt".equals(arg)) {
+                // Just ignore it, no action needed
+                break;
+            }
+        }
         // For OJ submission, always parse without arguments
         Options options = Options.parse();
         if (options.isPrintHelp()) {
