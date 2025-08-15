@@ -1,4 +1,4 @@
-GRADLEW := ./gradlew
+GRADLEW := gradlew.bat
 GRADLEW_ARGS := --warning-mode all
 
 .PHONY: all build run test clean
