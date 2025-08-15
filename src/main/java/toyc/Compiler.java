@@ -25,7 +25,8 @@ public class Compiler {
 
     public static void main(String... args) throws IOException {
         Timer.runAndCount(() -> {
-            Options options = processArgs(args);
+            // For OJ submission, ignore command line args
+            Options options = processArgs();
             // Only proceed with analysis if not showing help
             LoggerConfigs.setOutput(options.getOutputDir());
             Plan plan = processConfigs(options);
@@ -42,8 +43,9 @@ public class Compiler {
     }
 
     private static Options processArgs(String... args) {
-        Options options = Options.parse(args);
-        if (options.isPrintHelp() || args.length == 0) {
+        // For OJ submission, always parse without arguments
+        Options options = Options.parse();
+        if (options.isPrintHelp()) {
             options.printHelp();
             System.exit(0);
         }
@@ -85,7 +87,7 @@ public class Compiler {
     }
 
     public static void buildWorld(String... args) {
-        Options options = Options.parse(args);
+        Options options = Options.parse();
         LoggerConfigs.setOutput(options.getOutputDir());
         Plan plan = processConfigs(options);
         buildWorld(options, plan.analyses());
@@ -130,7 +132,7 @@ public class Compiler {
     }
 
     private static void printIR() {
-        System.out.println("\n========== IR Output ==========");
+        //System.out.println("\n========== IR Output ==========");
         Scope scope = World.get().getOptions().getScope();
         List<Function> functionScope = switch (scope) {
             case ALL -> World.get().getProgram().allFunctions().toList();
@@ -142,10 +144,10 @@ public class Compiler {
         };
         for (Function function : functionScope) {
             IR ir = function.getIR();
-            IRPrinter.print(ir, System.out);
-            System.out.println();
+            //IRPrinter.print(ir, System.out);
+            //System.out.println();
         }
-        System.out.println("========== End IR Output ==========");
+        //System.out.println("========== End IR Output ==========");
     }
 
     private static void generateAssembly() {
@@ -176,9 +178,9 @@ public class Compiler {
                 }
                 
                 // Also print to console
-                System.out.println("\n========== Assembly Output ==========");
+                //System.out.println("\n========== Assembly Output ==========");
                 System.out.print(assembly);
-                System.out.println("========== End Assembly Output ==========");
+                //System.out.println("========== End Assembly Output ==========");
                 
             } catch (Exception e) {
                 logger.error("Assembly generation failed: {}", e.getMessage());

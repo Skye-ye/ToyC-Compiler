@@ -36,6 +36,18 @@ generateGrammarSource {
     ]
 }
 
+run {
+    // For OJ submission, accept -opt parameter but ignore it
+    if (project.hasProperty('opt')) {
+        // -opt parameter is provided but we ignore it
+        println "Received -opt parameter: ${project.property('opt')} (ignored for OJ submission)"
+    }
+    // For OJ submission, no arguments needed
+    args = []
+    // Ensure stdin is available
+    standardInput = System.in
+}
+
 test {
     useJUnitPlatform()
     testLogging {

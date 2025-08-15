@@ -38,15 +38,15 @@ public class SemanticTestDriver {
                 SemanticChecker checker = new SemanticChecker();
                 checker.visit(tree);
                 if (!checker.hasError()) {
-                    System.out.println("No semantic errors found.");
+                    //System.out.println("No semantic errors found.");
                     ToyCFormatter formatter = new ToyCFormatter();
                     formatter.visit(tree);
                     String formattedCode = formatter.getFormattedCode();
-                    System.out.println(formattedCode);
+                    //System.out.println(formattedCode);
                     SemanticChecker semanticChecker = new SemanticChecker();
                     semanticChecker.visit(tree);
                     if (!semanticChecker.hasError()) {
-                        System.out.println("Semantic analysis passed.");
+                        //System.out.println("Semantic analysis passed.");
                     } else {
                         System.err.println("Semantic analysis failed.");
                     }

@@ -186,8 +186,15 @@ public class Options implements Serializable {
      * Parses arguments and return the parsed and post-processed Options.
      */
     public static Options parse(String... args) {
-        Options options = CommandLine.populateCommand(new Options(), args);
-        return postProcess(options);
+        File optionsFile = new File("options.yml");
+        if (optionsFile.exists()) {
+            Options options = readRawOptions(optionsFile);
+            return postProcess(options);
+        } else {
+            // Fallback to command line parsing if options.yml doesn't exist
+            Options options = CommandLine.populateCommand(new Options(), args);
+            return postProcess(options);
+        }
     }
 
     /**
@@ -212,9 +219,30 @@ public class Options implements Serializable {
             throw new ConfigException("Conflict options: " +
                     "--analysis and --plan-file should not be used simultaneously");
         }
+        
+        // For OJ submission: if inputFile is null, we read from stdin
+        // Create a temporary file to store stdin content
         if (options.getInputFile() == null) {
-            throw new ConfigException("Missing source file");
+            try {
+                java.io.File tempFile = java.io.File.createTempFile("stdin_input", ".tc");
+                tempFile.deleteOnExit();
+                
+                // Read from stdin and write to temp file
+                try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(System.in));
+                    java.io.PrintWriter writer = new java.io.PrintWriter(tempFile)) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        writer.println(line);
+                    }
+                }
+                
+                options.inputFile = tempFile.getAbsolutePath();
+                logger.info("Reading input from stdin, saved to temporary file: {}", tempFile.getAbsolutePath());
+            } catch (java.io.IOException e) {
+                throw new ConfigException("Failed to read from stdin", e);
+            }
         }
+        
         // mkdir for output dir
         if (!options.outputDir.exists()) {
             options.outputDir.mkdirs();
