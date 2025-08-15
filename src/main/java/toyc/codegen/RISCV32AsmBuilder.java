@@ -89,7 +89,7 @@ public class RISCV32AsmBuilder {
     }
 
     public void addGlobalFunc(String name) {
-        textDeclareBuffer.append(String.format("  .global %s\n", name));
+        textDeclareBuffer.append(String.format(".global %s\n", name));
         textDefineBuffer.append(String.format("%s:\n", name));
     }
 
@@ -191,7 +191,7 @@ public class RISCV32AsmBuilder {
     /* 支持标签
      */
     public void label(String labelName) {
-        textDefineBuffer.append(labelName + ":");
+        textDefineBuffer.append(labelName + ":\n");
     }
 
     /**
