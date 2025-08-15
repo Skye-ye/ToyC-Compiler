@@ -8,3 +8,4 @@ CLAUDE.md
 /output
 *.png
 /.vscode
+compiler.log

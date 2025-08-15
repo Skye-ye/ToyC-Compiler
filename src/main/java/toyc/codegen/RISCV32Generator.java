@@ -460,10 +460,6 @@ public class RISCV32Generator implements AssemblyGenerator {
          */
         private String loadOperand(RValue operand) {
             if (operand instanceof Var var) {
-                if (var.isConst() && var.getConstValue() instanceof IntLiteral intLit) {
-                    builder.li("t0", intLit.getValue());
-                    return "t0";
-                }
 
                 LocalDataLocation location = allocator.allocate(var.getName());
                 if (location == null) {
