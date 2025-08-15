@@ -34,7 +34,7 @@ public class ParserErrorListener extends BaseErrorListener {
 
     public void printParserErrorInformation() {
         for (ErrorInfo error : errorList) {
-            System.out.println("Error type B at Line " + error.line + ": " + error.msg);
+            //System.out.println("Error type B at Line " + error.line + ": " + error.msg);
         }
     }
 }

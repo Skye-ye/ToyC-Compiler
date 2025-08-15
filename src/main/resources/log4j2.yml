@@ -4,10 +4,14 @@ Configuration:
     Console:
       name: STDOUT
       target: SYSTEM_OUT
+    File:
+      name: FILEOUT
+      fileName: "compiler.log"  # 指定日志文件名
       PatternLayout:
         Pattern: "%m%n"
   Loggers:
     Root:
       level: info
       AppenderRef:
-        ref: STDOUT
+        #ref: STDOUT
+        ref: FILEOUT

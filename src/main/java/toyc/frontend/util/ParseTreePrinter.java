@@ -13,7 +13,7 @@ public class ParseTreePrinter extends ToyCParserBaseVisitor<String> {
     @Override
     public String visitChildren(RuleNode node) {
         String ruleName = ToyCParser.ruleNames[((ParserRuleContext)node).getRuleIndex()];
-        System.out.println("  ".repeat(indentLevel) + ruleName);
+        //System.out.println("  ".repeat(indentLevel) + ruleName);
 
         indentLevel++;
         String result = super.visitChildren(node);
@@ -25,7 +25,7 @@ public class ParseTreePrinter extends ToyCParserBaseVisitor<String> {
     @Override
     public String visitTerminal(TerminalNode node) {
         String tokenName = ToyCLexer.VOCABULARY.getSymbolicName(node.getSymbol().getType());
-        System.out.println("  ".repeat(indentLevel) + tokenName + ": " + node.getText());
+        //System.out.println("  ".repeat(indentLevel) + tokenName + ": " + node.getText());
         return null;
     }
 }

@@ -15,10 +15,7 @@ import toyc.util.collection.Maps;
 import toyc.util.collection.MultiMap;
 import toyc.util.collection.Pair;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.PrintStream;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -89,6 +86,7 @@ public class ResultProcessor extends ProgramAnalysis<Object> {
 
     private void setOutput() {
         String output = getOptions().getString("file");
+        String fileName;
         if (output != null) {
             try {
                 out = new PrintStream(output);
@@ -96,7 +94,13 @@ public class ResultProcessor extends ProgramAnalysis<Object> {
                 throw new RuntimeException("Failed to open output file", e);
             }
         } else {
-            out = System.out;
+            //out = System.out;
+            fileName = "output.txt";
+            try {
+                out = new PrintStream(new FileOutputStream(fileName));
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException("无法打开输出文件: " + fileName, e);
+            }
         }
     }
 

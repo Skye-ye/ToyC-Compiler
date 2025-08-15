@@ -16,9 +16,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.Serializable;
+import java.io.*;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -66,7 +64,13 @@ public class Options implements Serializable {
     public void printHelp() {
         CommandLine cmd = new CommandLine(this);
         cmd.setUsageHelpLongOptionsMaxWidth(30);
-        cmd.usage(System.out);
+        //cmd.usage(System.out);
+        // 输出到文件而不是控制台
+        try (PrintWriter fileWriter = new PrintWriter(new FileWriter("help.txt"))) {
+            cmd.usage(fileWriter);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to write help to file", e);
+        }
     }
 
     // ---------- program options ----------

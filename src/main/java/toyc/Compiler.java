@@ -46,7 +46,7 @@ public class Compiler {
         // For OJ submission, always parse without arguments
         Options options = Options.parse();
         if (options.isPrintHelp()) {
-            options.printHelp();
+            //options.printHelp();
             System.exit(0);
         }
         return options;
