@@ -30,12 +30,6 @@
   options:
     strongly: true # enable strongly live variable analysis
 
-- description: available expression analysis
-  algorithmClass: toyc.algorithm.analysis.dataflow.analysis.availexp.AvailableExpression
-  id: avail-exp
-  modification: false
-  requires: [ cfg ]
-
 - description: reaching definition analysis
   algorithmClass: toyc.algorithm.analysis.dataflow.analysis.ReachingDefinition
   id: reach-def
@@ -57,7 +51,7 @@
   requires: [ reach-def ]
   options:
     compute-defs: true # whether compute definitions of variables
-    compute-uses: false # whether compute uses of variables
+    compute-uses: true # whether compute uses of variables
 
 - description: inter-procedural constant propagation
   algorithmClass: toyc.algorithm.analysis.dataflow.inter.InterConstantPropagation
@@ -87,6 +81,18 @@
   modification: false
   requires: []
 
+- description: dominator analysis
+  algorithmClass: toyc.algorithm.analysis.dataflow.analysis.DominatorAnalysis
+  id: dominator
+  modification: false
+  requires: [ cfg ]
+
+- description: loop detection
+  algorithmClass: toyc.algorithm.analysis.loop.LoopDetection
+  id: loop-detection
+  modification: false
+  requires: [ cfg, dominator ]
+
 - description: constant folding
   algorithmClass: toyc.algorithm.optimization.ConstantFolding
   id: const-fold
@@ -111,12 +117,18 @@
   modification: true
   requires: [ func-inline ]
 
+- description: loop unrolling
+  algorithmClass: toyc.algorithm.optimization.LoopUnrolling
+  id: loop-unroll
+  modification: true
+  requires: [ loop-detection, def-use ]
+
 - description: process results of previously-run analyses
   algorithmClass: toyc.algorithm.analysis.ResultProcessor
   id: process-result
   modification: false
   options:
-    analyses: [ inter-const-prop ]
+    analyses: [ dominator, loop-detection, def-use ]
     action: dump # | compare
     file: null
     log-mismatches: false
