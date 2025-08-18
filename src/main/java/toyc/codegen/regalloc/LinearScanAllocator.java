@@ -17,6 +17,7 @@ public class LinearScanAllocator implements RegisterAllocator {
 
     private final Map<String, LocalDataLocation> varToLocation;
     private final ArrayList<LiveInterval> intervals;
+    private final List<String> paramVarNames;
     private final Set<LiveInterval> activeSortedByEnd;
     private final Set<Integer> freeTRegisters;
     private final Set<Integer> freeSRegisters;
@@ -25,6 +26,7 @@ public class LinearScanAllocator implements RegisterAllocator {
 
     public LinearScanAllocator(Set<LiveInterval> intervals, List<String> paramVarNames) {
         this.intervals = new ArrayList<LiveInterval>(intervals);
+        this.paramVarNames = paramVarNames;
         this.intervals.sort(Comparator.comparingInt(LiveInterval::getStart));
         // System.out.println("LinearScanAllocator initialized with intervals: " + this.intervals);
         this.varToLocation = new HashMap<>();
@@ -71,6 +73,10 @@ public class LinearScanAllocator implements RegisterAllocator {
 
     private void allocateRegisters() {
         for (LiveInterval interval : intervals) {
+            // 跳过已经分配了寄存器的变量（如参数变量）
+            if (varToLocation.containsKey(interval.getVariable())) {
+                continue;
+            }
             expireOldIntervals(interval.getStart());
             int reg = -1;
             // 简单策略：活跃区间短优先t，长优先s
@@ -94,6 +100,10 @@ public class LinearScanAllocator implements RegisterAllocator {
         }
 
         for (LiveInterval interval : intervals) {
+            // 跳过已经分配了寄存器的变量（如参数变量）
+            if (varToLocation.containsKey(interval.getVariable())) {
+                continue;
+            }
             LocalDataLocation location;
             if (interval.getRegister() == -1) {
                 location = LocalDataLocation.createStack(currentOffset);
