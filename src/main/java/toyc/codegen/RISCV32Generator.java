@@ -70,7 +70,8 @@ public class RISCV32Generator implements AssemblyGenerator {
         // Create a simple register allocator - for now, use a basic set of intervals
         // TODO: Calculate proper live intervals using dataflow analysis
         Set<LiveInterval> intervals = calculateSimpleLiveIntervals(ir);
-        RegisterAllocator allocator = new LinearScanAllocator(intervals);
+        List<String> paramVarNames = ir.getParams().stream().map(Var::getName).toList();
+        RegisterAllocator allocator = new LinearScanAllocator(intervals, paramVarNames);
 
         boolean hasCallSite = ir.getStmts().stream().anyMatch(stmt -> stmt instanceof Call);  // 假设 Call 是调用语句类
         // 获取栈大小和 callee-saved 寄存器

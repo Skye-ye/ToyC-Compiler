@@ -23,7 +23,7 @@ public class LinearScanAllocator implements RegisterAllocator {
     private final Set<String> usedCalleeSavedRegisters;
     private int currentOffset = 0;
 
-    public LinearScanAllocator(Set<LiveInterval> intervals) {
+    public LinearScanAllocator(Set<LiveInterval> intervals, List<String> paramVarNames) {
         this.intervals = new ArrayList<LiveInterval>(intervals);
         this.intervals.sort(Comparator.comparingInt(LiveInterval::getStart));
         // System.out.println("LinearScanAllocator initialized with intervals: " + this.intervals);
@@ -41,7 +41,11 @@ public class LinearScanAllocator implements RegisterAllocator {
         // 初始化t/s寄存器池
         for (int idx : T_REG_INDEX) freeTRegisters.add(idx);
         for (int idx : S_REG_INDEX) freeSRegisters.add(idx);
-        // a寄存器只在参数传递时用，普通变量不加
+        // 1. 先为参数分配 a0~a7
+        for (int i = 0; i < paramVarNames.size() && i < 8; i++) {
+            varToLocation.put(paramVarNames.get(i), LocalDataLocation.createRegister("a" + i));
+        }
+        // 2. 其它变量再用原有分配逻辑
         allocateRegisters();
     }
 
