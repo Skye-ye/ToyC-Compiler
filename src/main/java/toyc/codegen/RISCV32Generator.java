@@ -22,6 +22,9 @@ import java.util.Optional;
 import java.util.Set;
 
 public class RISCV32Generator implements AssemblyGenerator {
+
+    private static int labelCounter = 0;
+
     public static final TargetArchitecture.Architecture ARCH =
             TargetArchitecture.Architecture.RISC_V_32;
 
@@ -171,7 +174,6 @@ public class RISCV32Generator implements AssemblyGenerator {
         private final RegisterAllocator allocator;
         private final Map<Stmt, String> stmtLabels;
         private final String functionExitLabel;
-        private int labelCounter = 0;
 
         public StmtCodeGenerator(RISCV32AsmBuilder builder, RegisterAllocator allocator, String functionExitLabel) {
             this.builder = builder;
