@@ -5,6 +5,7 @@ import toyc.config.AlgorithmConfig;
 import toyc.ir.IR;
 import toyc.ir.exp.Var;
 import toyc.ir.stmt.*;
+import toyc.util.NumericSuffixNaming;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -12,13 +13,11 @@ import java.util.stream.Collectors;
 public class FunctionInlining extends Optimization {
     public static final String ID = "func-inline-opt";
 
-    private static final String VAR_SUFFIX = "$";
-
     private IROperation operation;
 
     private IR callerIR;
 
-    private Set<String> varNames;
+    private NumericSuffixNaming nameManager;
 
     public FunctionInlining(AlgorithmConfig config) {
         super(config);
@@ -28,9 +27,9 @@ public class FunctionInlining extends Optimization {
     public IR optimize(IR ir) {
         operation = new IROperation(ir);
         callerIR = ir;
-        varNames = callerIR.getVars().stream()
+        nameManager = new NumericSuffixNaming(callerIR.getVars().stream()
                 .map(Var::getName)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toSet()));
         Set<Call> callsToInline = ir.getResult(FunctionInliningDetection.ID);
         for (Call call : callsToInline) {
             inlineCall(call);
@@ -104,8 +103,7 @@ public class FunctionInlining extends Optimization {
 
         for (Var calleeVar : calleeVars) {
             if (!varMapping.containsKey(calleeVar)) {
-                String newVarName = getNewVarName(calleeVar);
-                varNames.add(newVarName);
+                String newVarName = nameManager.getNewVarName(calleeVar.getName());
                 Var clonedVar = new Var(
                         callerIR.getFunction(),
                         newVarName,
@@ -117,13 +115,5 @@ public class FunctionInlining extends Optimization {
         }
 
         return varMapping;
-    }
-
-    private String getNewVarName(Var var) {
-        String name = var.getName();
-        while (varNames.contains(name)) {
-            name += VAR_SUFFIX;
-        }
-        return name;
     }
 }

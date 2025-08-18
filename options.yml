@@ -12,5 +12,6 @@ analyses:
   const-fold: ""
   dead-code-elim: ""
   func-inline-opt: ""
+  loop-unroll: ""
 keepResult:
   - $KEEP-ALL

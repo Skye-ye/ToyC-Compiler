@@ -49,12 +49,9 @@ public class StmtListCopier {
 
         // fix statement references (If targets, Goto targets, etc.)
         for (Stmt stmt : clonedStmts) {
-            if (stmt instanceof If ifStmt) {
-                Stmt originalTarget = ifStmt.getTarget();
-                ifStmt.setTarget(stmtMapping.get(originalTarget));
-            } else if (stmt instanceof Goto goStmt) {
-                Stmt originalTarget = goStmt.getTarget();
-                goStmt.setTarget(stmtMapping.get(originalTarget));
+            if (stmt instanceof JumpStmt jumpStmt) {
+                Stmt originalTarget = jumpStmt.getTarget();
+                jumpStmt.setTarget(stmtMapping.getOrDefault(originalTarget, originalTarget));
             }
         }
 
@@ -77,19 +74,24 @@ public class StmtListCopier {
 
         @Override
         public Stmt visit(AssignLiteral stmt) {
+            Var lValue = stmt.getLValue();
             return new AssignLiteral(
-                    varMapping.get(stmt.getLValue()), stmt.getRValue());
+                    varMapping.getOrDefault(lValue, lValue),
+                    stmt.getRValue());
         }
 
         @Override
         public Stmt visit(Copy stmt) {
-            return new Copy(varMapping.get(stmt.getLValue()),
-                    varMapping.get(stmt.getRValue()));
+            Var lValue = stmt.getLValue();
+            Var rValue = stmt.getRValue();
+            return new Copy(varMapping.getOrDefault(lValue, lValue),
+                    varMapping.getOrDefault(rValue, rValue));
         }
 
         @Override
         public Stmt visit(Binary stmt) {
-            return new Binary(varMapping.get(stmt.getLValue()),
+            Var lValue = stmt.getLValue();
+            return new Binary(varMapping.getOrDefault(lValue, lValue),
                     (BinaryExp) stmt.getRValue().accept(expCopier));
         }
 
@@ -102,7 +104,8 @@ public class StmtListCopier {
 
         @Override
         public Stmt visit(Unary stmt) {
-            return new Unary(varMapping.get(stmt.getLValue()),
+            Var lValue = stmt.getLValue();
+            return new Unary(varMapping.getOrDefault(lValue, lValue),
                     (UnaryExp) stmt.getRValue().accept(expCopier));
         }
 
@@ -115,18 +118,19 @@ public class StmtListCopier {
 
         @Override
         public Stmt visit(Call stmt) {
+            Var result = stmt.getResult();
             return new Call(
                     targetFunction != null ? targetFunction :
                             stmt.getContainer(),
                     (CallExp) stmt.getCallExp().accept(expCopier),
-                    stmt.getResult() == null ? null : varMapping.get(stmt.getResult()));
+                    result == null ? null : varMapping.getOrDefault(result, result));
         }
 
         @Override
         public Stmt visit(Return stmt) {
             Var result = stmt.getValue();
             if (result != null) {
-                result = varMapping.get(result);
+                result = varMapping.getOrDefault(result, result);
             }
             return new Return(result);
         }
@@ -149,35 +153,41 @@ public class StmtListCopier {
                 List<Var> originalVars = invoke.getArgs();
                 List<Var> clonedVars = new ArrayList<>();
                 for (Var originalVar : originalVars) {
-                    clonedVars.add(varMapping.get(originalVar));
+                    clonedVars.add(varMapping.getOrDefault(originalVar, originalVar));
                 }
                 return new CallExp(invoke.getFunction(), clonedVars);
             }
 
             @Override
             public Exp visit(NegExp exp) {
-                return new NegExp(varMapping.get(exp.getOperand()));
+                Var operand = exp.getOperand();
+                return new NegExp(varMapping.getOrDefault(operand, operand));
             }
 
             @Override
             public Exp visit(NotExp exp) {
-                return new NotExp(varMapping.get(exp.getOperand()));
+                Var operand = exp.getOperand();
+                return new NotExp(varMapping.getOrDefault(operand, operand));
             }
 
             @Override
             public Exp visit(ArithmeticExp exp) {
+                Var operand1 = exp.getOperand1();
+                Var operand2 = exp.getOperand2();
                 return new ArithmeticExp(
                         exp.getOperator(),
-                        varMapping.get(exp.getOperand1()),
-                        varMapping.get(exp.getOperand2()));
+                        varMapping.getOrDefault(operand1, operand1),
+                        varMapping.getOrDefault(operand2, operand2));
             }
 
             @Override
             public Exp visit(ConditionExp exp) {
+                Var operand1 = exp.getOperand1();
+                Var operand2 = exp.getOperand2();
                 return new ConditionExp(
                         exp.getOperator(),
-                        varMapping.get(exp.getOperand1()),
-                        varMapping.get(exp.getOperand2()));
+                        varMapping.getOrDefault(operand1, operand1),
+                        varMapping.getOrDefault(operand2, operand2));
             }
 
             @Override

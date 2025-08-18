@@ -65,7 +65,7 @@
   algorithmClass: toyc.algorithm.analysis.deadcode.DeadCodeDetection
   id: dead-code
   modification: false
-  requires: [ cfg,inter-const-prop,live-var ]
+  requires: [ cfg,const-prop,live-var ]
 
 - description: common subexpression detection
   algorithmClass: toyc.algorithm.analysis.dataflow.analysis.csd.CommonSubexpressionDetection

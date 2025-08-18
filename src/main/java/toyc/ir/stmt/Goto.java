@@ -9,10 +9,12 @@ public class Goto extends JumpStmt {
 
     private Stmt target;
 
+    @Override
     public Stmt getTarget() {
         return target;
     }
 
+    @Override
     public void setTarget(Stmt target) {
         this.target = target;
     }
@@ -20,11 +22,6 @@ public class Goto extends JumpStmt {
     @Override
     public boolean canFallThrough() {
         return false;
-    }
-
-    @Override
-    public List<Stmt> getTargets() {
-        return List.of(target);
     }
 
     @Override

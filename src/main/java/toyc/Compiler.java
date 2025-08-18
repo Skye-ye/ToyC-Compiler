@@ -2,6 +2,7 @@ package toyc;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import toyc.algorithm.Algorithm;
 import toyc.algorithm.AlgorithmManager;
 import toyc.algorithm.analysis.graph.callgraph.CallGraph;
 import toyc.algorithm.analysis.graph.callgraph.CallGraphBuilder;
@@ -10,6 +11,7 @@ import toyc.frontend.cache.CachedWorldBuilder;
 import toyc.ir.IR;
 import toyc.ir.IRPrinter;
 import toyc.language.Function;
+import toyc.util.AnalysisException;
 import toyc.util.Timer;
 import toyc.util.collection.Lists;
 
@@ -80,14 +82,6 @@ public class Compiler {
         }
         // No analyses are specified
         return Plan.emptyPlan();
-    }
-
-    public static void buildWorld(String... args) {
-        Options options = Options.parse(args);
-        LoggerConfigs.setOutput(options.getOutputDir());
-        Plan plan = processConfigs(options);
-        buildWorld(options, plan.analyses());
-        LoggerConfigs.reconfigure();
     }
 
     private static void buildWorld(Options options, List<AlgorithmConfig> analyses) {

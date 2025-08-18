@@ -37,10 +37,12 @@ public class If extends JumpStmt {
      * @return the jump target (when the condition expression is evaluated
      * to true) of the if-statement.
      */
+    @Override
     public Stmt getTarget() {
         return target;
     }
 
+    @Override
     public void setTarget(Stmt target) {
         this.target = target;
     }
@@ -50,11 +52,6 @@ public class If extends JumpStmt {
         Set<RValue> uses = new ArraySet<>(condition.getUses());
         uses.add(condition);
         return uses;
-    }
-
-    @Override
-    public List<Stmt> getTargets() {
-        return List.of(target);
     }
 
     @Override
