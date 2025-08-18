@@ -9,19 +9,14 @@ import toyc.algorithm.analysis.ProgramAnalysis;
 import toyc.algorithm.analysis.graph.callgraph.CallGraph;
 import toyc.algorithm.analysis.graph.callgraph.CallGraphBuilder;
 import toyc.algorithm.optimization.Optimization;
-import toyc.config.AlgorithmConfig;
-import toyc.config.ConfigException;
-import toyc.config.Plan;
-import toyc.config.Scope;
+import toyc.config.*;
 import toyc.ir.IR;
 import toyc.language.Function;
 import toyc.util.AnalysisException;
 import toyc.util.Timer;
-import toyc.util.graph.SimpleGraph;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -33,61 +28,47 @@ public class AlgorithmManager {
 
     private final Plan plan;
 
-    /**
-     * Whether keep results of all analyses. If the value is {@code false},
-     * this manager will clear unused results after it finishes each analysis.
-     */
-    private final boolean keepAllResults;
-
-    /**
-     * Graph that describes the dependencies among analyses (represented
-     * by their IDs) in the plan. This graph is used to check whether
-     * certain analysis results are useful.
-     */
-    private SimpleGraph<String> dependenceGraph;
-
-    /**
-     * List of analyses that have been executed. For an element in this list,
-     * once its result is clear, it will also be removed from this list.
-     */
-    private List<Algorithm> executedAnalyses;
-
     private List<Function> functionScope;
 
     public AlgorithmManager(Plan plan) {
         this.plan = plan;
-        this.keepAllResults = plan.keepResult().contains(Plan.KEEP_ALL);
     }
 
     /**
      * Executes the analysis plan.
      */
-    public List<IR> execute() {
-        // initialize
-        if (!keepAllResults) {
-            dependenceGraph = new SimpleGraph<>();
-            for (AlgorithmConfig c : plan.dependenceGraph()) {
-                for (AlgorithmConfig succ : plan.dependenceGraph().getSuccsOf(c)) {
-                    dependenceGraph.addEdge(c.getId(), succ.getId());
-                }
-            }
-            executedAnalyses = new ArrayList<>();
-        }
-        functionScope = null;
-        // execute analyses
-        plan.analyses().forEach(config -> {
-            Algorithm algorithm = Timer.runAndCount(
-                    () -> runAlgorithm(config), config.getId(), Level.INFO);
-            if (!keepAllResults) {
-                executedAnalyses.add(algorithm);
-                clearUnusedResults(algorithm);
-            }
-        });
-        // return optimized IRs
-        return getFunctionScope().stream().map(Function::getIR).toList();
+    public void execute() {
+        executePlan(plan);
     }
 
-    private Algorithm runAlgorithm(AlgorithmConfig config) {
+    private void executePlan(Plan plan) {
+        if (plan == null || plan.analyses().isEmpty()) {
+            logger.info("No analyses to execute");
+            return;
+        }
+        for (int i = 0; i < 10; i++) {
+            functionScope = null;
+            plan.analyses().forEach(element -> Timer.runAndCount(
+                    () -> runPlanElement(element), getPlanElementName(element),
+                    Level.INFO));
+        }
+    }
+
+    private void runPlanElement(PlanElement planElement) {
+        switch (planElement) {
+            case AlgorithmConfig ac -> runAlgorithm(ac);
+            case Plan p -> executePlan(p);
+        }
+    }
+
+    private String getPlanElementName(PlanElement element) {
+        return switch (element) {
+            case AlgorithmConfig ac -> ac.getId();
+            case Plan p -> "NestedPlan(" + p.analyses().size() + " analyses)";
+        };
+    }
+
+    private void runAlgorithm(AlgorithmConfig config) {
         Algorithm algorithm;
         // Create analysis instance
         try {
@@ -116,7 +97,6 @@ public class AlgorithmManager {
             default -> throw new ConfigException(config.getAlgorithmClass() +
                     " is not a supported analysis class");
         }
-        return algorithm;
     }
 
     private void runProgramAnalysis(ProgramAnalysis<?> analysis) {
@@ -165,41 +145,5 @@ public class AlgorithmManager {
                     functionScope.size(), scope);
         }
         return functionScope;
-    }
-
-    /**
-     * @param algorithm the analysis that just finished.
-     */
-    private void clearUnusedResults(Algorithm algorithm) {
-        // analysis has finished, we can remove its dependencies
-        // copy in-edges to a new list to avoid concurrent modifications
-        var edgesToRemove = new ArrayList<>(
-                dependenceGraph.getInEdgesOf(algorithm.getId()));
-        edgesToRemove.forEach(e ->
-                dependenceGraph.removeEdge(e.source(), e.target()));
-        // select the analyses whose results are unused and not in keepResult
-        List<String> unused = executedAnalyses.stream()
-                .map(Algorithm::getId)
-                .filter(id -> dependenceGraph.getOutDegreeOf(id) == 0)
-                .filter(id -> !plan.keepResult().contains(id))
-                .toList();
-        if (!unused.isEmpty()) {
-            logger.info("Clearing unused results of {}", unused);
-            for (String id : unused) {
-                int i;
-                for (i = 0; i < executedAnalyses.size(); ++i) {
-                    Algorithm a = executedAnalyses.get(i);
-                    if (a.getId().equals(id)) {
-                        if (a instanceof ProgramAnalysis) {
-                            World.get().clearResult(id);
-                        } else if (a instanceof FunctionAnalysis) {
-                            getFunctionScope().forEach(f -> f.getIR().clearResult(id));
-                        }
-                        break;
-                    }
-                }
-                executedAnalyses.remove(i);
-            }
-        }
     }
 }

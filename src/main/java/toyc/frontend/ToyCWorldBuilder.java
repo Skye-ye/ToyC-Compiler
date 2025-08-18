@@ -34,7 +34,7 @@ public class ToyCWorldBuilder extends AbstractWorldBuilder {
     private Map<String, ToyCParser.FuncDefContext> functionContexts;
 
     @Override
-    public void build(Options options, List<AlgorithmConfig> analyses) {
+    public void build(Options options) {
         logger.info("Building ToyC world...");
 
         // Reset World

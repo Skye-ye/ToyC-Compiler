@@ -1,17 +1,9 @@
 optionsFile: null
 printHelp: false
-inputFile: src/test/resources/toyc/oj/16_complex_syntax.tc
+inputFile: src/test/resources/toyc/oj/06_continue.tc
 worldBuilderClass: toyc.frontend.ToyCWorldBuilder
 outputDir: output
 preBuildIR: false
 worldCacheMode: false
 scope: REACHABLE
-planFile: null
-onlyGenPlan: false
-analyses:
-  const-fold: ""
-  dead-code-elim: ""
-  func-inline-opt: ""
-  loop-unroll: ""
-keepResult:
-  - $KEEP-ALL
+planFile: output/toyc-plan.yml

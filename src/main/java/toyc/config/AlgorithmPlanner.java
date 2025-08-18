@@ -24,14 +24,8 @@ public class AlgorithmPlanner {
 
     private final ConfigManager manager;
 
-    /**
-     * Set of IDs for the analyses whose results are kept.
-     */
-    private final Set<String> keepResult;
-
-    public AlgorithmPlanner(ConfigManager manager, Set<String> keepResult) {
+    public AlgorithmPlanner(ConfigManager manager) {
         this.manager = manager;
-        this.keepResult = keepResult;
     }
 
     /**
@@ -44,11 +38,48 @@ public class AlgorithmPlanner {
      */
     public Plan makePlan(List<PlanConfig> planConfigs,
                          boolean reachableScope) {
-        List<AlgorithmConfig> analyses = covertConfigs(planConfigs);
-        validateAnalyses(analyses, reachableScope);
-        Graph<AlgorithmConfig> graph = buildDependenceGraph(analyses);
-        validateDependenceGraph(graph);
-        return new Plan(analyses, graph, keepResult);
+        List<PlanElement> analyses = planConfigs.stream()
+                .map(this::convertConfig)
+                .toList();
+        return new Plan(analyses);
+    }
+
+    /**
+     * Convert a single PlanConfig to PlanElement (either AlgorithmConfig or Plan).
+     */
+    private PlanElement convertConfig(PlanConfig config) {
+        if (config.isAlgorithm()) {
+            // Convert algorithm config - reuse existing logic
+            return convertAlgorithmConfig(config);
+        } else if (config instanceof NestedPlanConfig nestedConfig) {
+            // Recursively convert nested plan
+            return convertNestedPlan(nestedConfig);
+        } else {
+            throw new ConfigException("Unknown PlanConfig type: " + config.getClass());
+        }
+    }
+
+    /**
+     * Convert algorithm PlanConfig to AlgorithmConfig - reuses existing logic.
+     */
+    private AlgorithmConfig convertAlgorithmConfig(PlanConfig config) {
+        AlgorithmConfig baseConfig = manager.getConfig(config.getId());
+        if (baseConfig == null) {
+            throw new ConfigException("Algorithm not found: " + config.getId());
+        }
+        return baseConfig;
+    }
+
+    /**
+     * Convert nested plan config to Plan.
+     */
+    private Plan convertNestedPlan(NestedPlanConfig nestedConfig) {
+        // Recursively convert nested analyses
+        List<PlanElement> nestedAnalyses = nestedConfig.getAnalyses().stream()
+                .map(this::convertConfig)
+                .toList();
+
+        return new Plan(nestedAnalyses);
     }
 
     /**
@@ -135,16 +166,13 @@ public class AlgorithmPlanner {
         List<List<AlgorithmConfig>> splitConfigs =
                 CollectionUtils.splitByBooleanField(configs,
                         AlgorithmConfig::getModification);
-        List<AlgorithmConfig> analyses = new ArrayList<>();
+        List<PlanElement> analyses = new ArrayList<>();
         for (List<AlgorithmConfig> split : splitConfigs) {
             // resolve dependencies for each split
             List<AlgorithmConfig> resolved = resolveDependencies(split, reachableScope);
             analyses.addAll(resolved);
         }
-        // Generate dependence graph
-        Graph<AlgorithmConfig> graph = buildDependenceGraph(analyses);
-        validateDependenceGraph(graph);
-        return new Plan(analyses, graph, keepResult);
+        return new Plan(analyses);
     }
 
     private List<AlgorithmConfig> resolveDependencies(List<AlgorithmConfig> configs, boolean reachableScope) {
