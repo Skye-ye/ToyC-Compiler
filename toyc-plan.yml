@@ -1,5 +1,4 @@
-- name: const-and-dead
-  analyses:
+- analyses:
   - id: cg
   - id: cfg
   - id: icfg
@@ -7,15 +6,10 @@
   - id: const-fold
   - id: cg
   - id: cfg
-  - id: icfg
-  - id: inter-const-prop
+  - id: const-prop
   - id: live-var
   - id: dead-code
   - id: dead-code-elim
-
-- id: cg
-- id: func-inline
-- id: func-inline-opt
 - id: cg
 - id: cfg
 - id: dominator
@@ -23,3 +17,18 @@
 - id: reach-def
 - id: def-use
 - id: loop-unroll
+- analyses:
+    - id: cg
+    - id: cfg
+    - id: icfg
+    - id: inter-const-prop
+    - id: const-fold
+    - id: cg
+    - id: cfg
+    - id: const-prop
+    - id: live-var
+    - id: dead-code
+    - id: dead-code-elim
+- id: cg
+- id: func-inline
+- id: func-inline-opt

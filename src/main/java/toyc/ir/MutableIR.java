@@ -70,6 +70,7 @@ public class MutableIR {
                 return;
             }
         }
+        System.out.println(beforeStmt);
         throw new AnalysisException("insertBefore: Statement not found");
     }
 

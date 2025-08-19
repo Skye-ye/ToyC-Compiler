@@ -1,14 +1,13 @@
 package toyc.algorithm.analysis.deadcode;
 
-import toyc.World;
 import toyc.algorithm.analysis.FunctionAnalysis;
 import toyc.algorithm.analysis.dataflow.analysis.LiveVariable;
 import toyc.algorithm.analysis.dataflow.analysis.constprop.CPFact;
+import toyc.algorithm.analysis.dataflow.analysis.constprop.ConstantPropagation;
 import toyc.algorithm.analysis.dataflow.analysis.constprop.Evaluator;
 import toyc.algorithm.analysis.dataflow.analysis.constprop.Value;
 import toyc.algorithm.analysis.dataflow.fact.NodeResult;
 import toyc.algorithm.analysis.dataflow.fact.SetFact;
-import toyc.algorithm.analysis.dataflow.inter.InterConstantPropagation;
 import toyc.algorithm.analysis.graph.cfg.CFG;
 import toyc.algorithm.analysis.graph.cfg.CFGBuilder;
 import toyc.algorithm.analysis.graph.cfg.CFGEdge;
@@ -39,7 +38,7 @@ public class DeadCodeDetection extends FunctionAnalysis<Set<Stmt>> {
         // obtain results of pre-analyses
         CFG<Stmt> cfg = ir.getResult(CFGBuilder.ID);
         NodeResult<Stmt, CPFact> constants =
-                World.get().getResult(InterConstantPropagation.ID);
+                ir.getResult(ConstantPropagation.ID);
         NodeResult<Stmt, SetFact<Var>> liveVars =
                 ir.getResult(LiveVariable.ID);
         // keep statements (dead code) sorted in the resulting set

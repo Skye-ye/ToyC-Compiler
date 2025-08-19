@@ -3,16 +3,16 @@
   id: cg
   modification: false
   options:
-    dump: true # whether dump call graph in dot file
-    dump-functions: true # whether dump reachable functions
-    dump-call-edges: true # whether dump call edges
+    dump: false # whether dump call graph in dot file
+    dump-functions: false # whether dump reachable functions
+    dump-call-edges: false # whether dump call edges
 
 - description: intraprocedural control-flow graph
   algorithmClass: toyc.algorithm.analysis.graph.cfg.CFGBuilder
   id: cfg
   modification: false
   options:
-    dump: true # dump control-flow graph
+    dump: false # dump control-flow graph
 
 - description: interprocedural control-flow graph
   algorithmClass: toyc.algorithm.analysis.graph.icfg.ICFGBuilder
@@ -20,7 +20,7 @@
   modification: false
   requires: [ cfg,cg ]
   options:
-    dump: true # dump inter-procedural control-flow graph
+    dump: false # dump inter-procedural control-flow graph
 
 - description: live variable analysis
   algorithmClass: toyc.algorithm.analysis.dataflow.analysis.LiveVariable
