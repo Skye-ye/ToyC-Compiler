@@ -109,6 +109,16 @@ public class MutableIR {
     }
 
     /**
+     * Check if the specified statement exists in the IR.
+     * 
+     * @param stmt the statement to check for
+     * @return true if the statement exists, false otherwise
+     */
+    public boolean contains(Stmt stmt) {
+        return stmts.contains(stmt);
+    }
+
+    /**
      * Get the next statement after the specified statement.
      */
     public Stmt getNextStmt(Stmt currentStmt) {

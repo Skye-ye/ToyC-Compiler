@@ -98,6 +98,12 @@ public class IROperation {
     }
 
     public void insertUnrolledLoop(@Nonnull Stmt header, @Nonnull List<Stmt> body) {
+        // Check if the header statement still exists in the IR
+        if (!ir.contains(header)) {
+            // Header was removed by previous optimizations, skip loop unrolling
+            return;
+        }
+        
         Stmt newHeader = body.getFirst();
         for (JumpStmt stmt : ir.getPredecessors(header)) {
             // Only update the jump stmts before old header
