@@ -1,0 +1,24 @@
+int main() {
+    int n = 10;
+    int sum = 0;
+    int i = 0;
+
+    while (i < n)
+    {
+        int j = 0;
+        while (j < i)
+        {
+            j = j + 1;
+            sum = sum + j;
+        }
+
+        if (sum > 913)
+        {
+            break;
+        }
+
+        i = i + 1;
+    }
+
+    return sum;
+}

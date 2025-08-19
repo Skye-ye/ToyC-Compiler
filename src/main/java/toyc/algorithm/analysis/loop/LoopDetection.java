@@ -11,6 +11,7 @@ import toyc.config.AlgorithmConfig;
 import toyc.ir.IR;
 import toyc.ir.stmt.Goto;
 import toyc.ir.stmt.If;
+import toyc.ir.stmt.JumpStmt;
 import toyc.ir.stmt.Stmt;
 import toyc.util.collection.Sets;
 
@@ -52,10 +53,12 @@ public class LoopDetection extends FunctionAnalysis<Set<Loop>> {
                         }
                 ));
 
-        // Construct loops using representative back edges
+        // Select only the loop with the smallest header index
         return headerToMaxBackEdge.values().stream()
+                .min(Comparator.comparingInt(edge -> edge.target().getIndex()))
                 .map(this::constructNaturalLoop)
-                .collect(Collectors.toSet());
+                .map(Set::of)
+                .orElse(Set.of());
     }
 
     /**
@@ -107,9 +110,7 @@ public class LoopDetection extends FunctionAnalysis<Set<Loop>> {
         for (int i = headerIndex; i <= tailIndex; i++) {
             Stmt stmt = ir.getStmt(i);
             loopBody.add(stmt);
-            if (stmt instanceof If ifStmt && ifStmt.getTarget() == header) {
-                tails.add(stmt);
-            } else if (stmt instanceof Goto gotoStmt && gotoStmt.getTarget() == header) {
+            if (stmt instanceof JumpStmt jumpStmt && jumpStmt.getTarget() == header) {
                 tails.add(stmt);
             }
         }

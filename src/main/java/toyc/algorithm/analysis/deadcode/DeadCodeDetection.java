@@ -18,6 +18,7 @@ import toyc.ir.stmt.AssignStmt;
 import toyc.ir.stmt.Call;
 import toyc.ir.stmt.If;
 import toyc.ir.stmt.Stmt;
+import toyc.util.collection.Maps;
 import toyc.util.collection.Sets;
 
 import java.util.*;
@@ -25,7 +26,8 @@ import java.util.*;
 /**
  * Detects dead code in an IR.
  */
-public class DeadCodeDetection extends FunctionAnalysis<Set<Stmt>> {
+public class DeadCodeDetection extends FunctionAnalysis<Map<Stmt,
+        DeadCodeDetection.Kind>> {
 
     public static final String ID = "dead-code";
 
@@ -34,7 +36,7 @@ public class DeadCodeDetection extends FunctionAnalysis<Set<Stmt>> {
     }
 
     @Override
-    public Set<Stmt> analyze(IR ir) {
+    public Map<Stmt, DeadCodeDetection.Kind> analyze(IR ir) {
         // obtain results of pre-analyses
         CFG<Stmt> cfg = ir.getResult(CFGBuilder.ID);
         NodeResult<Stmt, CPFact> constants =
@@ -42,7 +44,8 @@ public class DeadCodeDetection extends FunctionAnalysis<Set<Stmt>> {
         NodeResult<Stmt, SetFact<Var>> liveVars =
                 ir.getResult(LiveVariable.ID);
         // keep statements (dead code) sorted in the resulting set
-        Set<Stmt> deadCode = Sets.newOrderedSet(Comparator.comparing(Stmt::getIndex));
+        Map<Stmt, DeadCodeDetection.Kind> deadCode =
+                Maps.newOrderedMap(Comparator.comparing(Stmt::getIndex));
         // initialize graph traversal
         Set<Stmt> visited = Sets.newSet(cfg.getNumberOfNodes());
         Queue<Stmt> queue = new ArrayDeque<>();
@@ -52,30 +55,32 @@ public class DeadCodeDetection extends FunctionAnalysis<Set<Stmt>> {
             visited.add(stmt);
             if (isDeadAssignment(stmt, liveVars)) {
                 // record dead assignment
-                deadCode.add(stmt);
+                deadCode.put(stmt, Kind.NORMAL);
             } else if (isDeadCall(stmt, liveVars)) {
                 // record dead call
-                deadCode.add(stmt);
+                deadCode.put(stmt, Kind.NORMAL);
             }
-            cfg.getOutEdgesOf(stmt)
-                    .stream()
-                    .filter(edge -> !isUnreachableBranch(edge, constants))
-                    .map(CFGEdge::target)
-                    .forEach(succ -> {
-                        if (!visited.contains(succ)) {
-                            queue.add(succ);
-                        }
-                    });
+            for (CFGEdge<Stmt> edge : cfg.getOutEdgesOf(stmt)) {
+                if (isUnreachableBranch(edge, constants)) {
+                    deadCode.put(stmt, edge.getKind() == CFGEdge.Kind.IF_TRUE
+                            ? Kind.IF_TRUE : Kind.IF_FALSE);
+                } else {
+                    Stmt succ = edge.target();
+                    if (!visited.contains(succ)) {
+                        queue.add(succ);
+                    }
+                }
+            }
         }
         if (visited.size() < cfg.getNumberOfNodes()) {
             // this means that some nodes are not reachable during traversal
             for (Stmt s : ir) {
                 if (!visited.contains(s)) {
-                    deadCode.add(s);
+                    deadCode.put(s, Kind.NORMAL);
                 }
             }
         }
-        return deadCode.isEmpty() ? Collections.emptySet() : deadCode;
+        return deadCode.isEmpty() ? Collections.emptyMap() : deadCode;
     }
 
     private static boolean isDeadAssignment(
@@ -130,5 +135,23 @@ public class DeadCodeDetection extends FunctionAnalysis<Set<Stmt>> {
             return op != ArithmeticExp.Op.DIV && op != ArithmeticExp.Op.REM;
         }
         return true;
+    }
+
+    public enum Kind {
+
+        /**
+         * Edge kind for fall-through to next statement.
+         */
+        NORMAL,
+
+        /**
+         * Edge kind for if statements when condition is true.
+         */
+        IF_TRUE,
+
+        /**
+         * Edge kind for if statements when condition is false.
+         */
+        IF_FALSE,
     }
 }

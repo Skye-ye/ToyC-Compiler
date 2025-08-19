@@ -8,8 +8,7 @@ import toyc.config.AlgorithmConfig;
 import toyc.ir.IR;
 import toyc.ir.exp.LValue;
 import toyc.ir.exp.Var;
-import toyc.ir.stmt.Goto;
-import toyc.ir.stmt.If;
+import toyc.ir.stmt.JumpStmt;
 import toyc.ir.stmt.Stmt;
 import toyc.ir.stmt.StmtListCopier;
 import toyc.util.NumericSuffixNaming;
@@ -44,19 +43,10 @@ public class LoopUnrolling extends Optimization {
         Set<Loop> loops = ir.getResult(LoopDetection.ID);
 
         for (Loop loop : loops) {
-            if (canUnrollLoop(loop)) {
-                unrollLoop(loop);
-            }
+            unrollLoop(loop);
         }
 
         return operation.getIR();
-    }
-
-    /**
-     * Check if a loop can be unrolled
-     */
-    private boolean canUnrollLoop(Loop loop) {
-        return true; // for testing purposes, always return true
     }
 
     /**
@@ -78,17 +68,8 @@ public class LoopUnrolling extends Optimization {
             int index = tail.getIndex();
             for (Stmt stmt : duplicatedBody) {
                 if (stmt.getIndex() == index) {
-                    if (stmt instanceof If ifStmt) {
-                        int ifPosition = duplicatedBody.indexOf(ifStmt);
-                        Goto gotoHeader = new Goto();
-                        gotoHeader.setTarget(header);
-                        Goto gotoNext = new Goto();
-                        gotoNext.setTarget(duplicatedBody.get(ifPosition + 1));
-                        ifStmt.setTarget(gotoHeader);
-                        duplicatedBody.add(ifPosition + 1, gotoNext);
-                        duplicatedBody.add(ifPosition + 2, gotoHeader);
-                    } else if (stmt instanceof Goto gotoStmt) {
-                        gotoStmt.setTarget(header);
+                    if (stmt instanceof JumpStmt jumpStmt) {
+                        jumpStmt.setTarget(header);
                     } else {
                         throw new IllegalStateException(
                                 "Unsupported tail statement type: " + stmt.getClass());
