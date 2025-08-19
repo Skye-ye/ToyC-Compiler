@@ -1,9 +1,9 @@
 optionsFile: null
 printHelp: false
-inputFile: src/test/resources/toyc/oj/06_continue.tc
+inputFile: src/test/resources/toyc/oj/17_complex_expressions.tc
 worldBuilderClass: toyc.frontend.ToyCWorldBuilder
 outputDir: output
 preBuildIR: false
 worldCacheMode: false
 scope: REACHABLE
-planFile: output/toyc-plan.yml
+planFile: toyc-plan.yml

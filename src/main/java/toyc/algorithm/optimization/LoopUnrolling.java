@@ -79,7 +79,14 @@ public class LoopUnrolling extends Optimization {
             for (Stmt stmt : duplicatedBody) {
                 if (stmt.getIndex() == index) {
                     if (stmt instanceof If ifStmt) {
-                        ifStmt.setTarget(header);
+                        int ifPosition = duplicatedBody.indexOf(ifStmt);
+                        Goto gotoHeader = new Goto();
+                        gotoHeader.setTarget(header);
+                        Goto gotoNext = new Goto();
+                        gotoNext.setTarget(duplicatedBody.get(ifPosition + 1));
+                        ifStmt.setTarget(gotoHeader);
+                        duplicatedBody.add(ifPosition + 1, gotoNext);
+                        duplicatedBody.add(ifPosition + 2, gotoHeader);
                     } else if (stmt instanceof Goto gotoStmt) {
                         gotoStmt.setTarget(header);
                     } else {

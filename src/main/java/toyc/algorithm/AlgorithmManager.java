@@ -41,24 +41,42 @@ public class AlgorithmManager {
         executePlan(plan);
     }
 
-    private void executePlan(Plan plan) {
+    private boolean executePlan(Plan plan) {
         if (plan == null || plan.analyses().isEmpty()) {
             logger.info("No analyses to execute");
-            return;
+            return false; // No changes made
         }
-        for (int i = 0; i < 10; i++) {
-            functionScope = null;
-            plan.analyses().forEach(element -> Timer.runAndCount(
-                    () -> runPlanElement(element), getPlanElementName(element),
-                    Level.INFO));
-        }
+
+        boolean globalChanges = false;
+        boolean hasChanges;
+
+        do {
+            functionScope = null; // Reset scope for each iteration
+            hasChanges = false;
+
+            // Execute each plan element and check for changes
+            for (PlanElement element : plan.analyses()) {
+                boolean elementChanged = Timer.runAndCount(
+                        () -> runPlanElement(element),
+                        getPlanElementName(element),
+                        Level.INFO);
+
+                if (elementChanged) {
+                    hasChanges = true;
+                    globalChanges = true;
+                    logger.debug("Changes detected in {}", getPlanElementName(element));
+                }
+            }
+        } while (hasChanges);
+
+        return globalChanges;
     }
 
-    private void runPlanElement(PlanElement planElement) {
-        switch (planElement) {
+    private boolean runPlanElement(PlanElement planElement) {
+        return switch (planElement) {
             case AlgorithmConfig ac -> runAlgorithm(ac);
             case Plan p -> executePlan(p);
-        }
+        };
     }
 
     private String getPlanElementName(PlanElement element) {
@@ -68,7 +86,7 @@ public class AlgorithmManager {
         };
     }
 
-    private void runAlgorithm(AlgorithmConfig config) {
+    private boolean runAlgorithm(AlgorithmConfig config) {
         Algorithm algorithm;
         // Create analysis instance
         try {
@@ -90,23 +108,24 @@ public class AlgorithmManager {
                     config.getAlgorithmClass() + " is not an analysis class");
         }
         // Run the analysis
-        switch (algorithm) {
+        return switch (algorithm) {
             case ProgramAnalysis<?> pa -> runProgramAnalysis(pa);
             case FunctionAnalysis<?> ma -> runFunctionAnalysis(ma);
             case Optimization opt -> runOptimization(opt);
             default -> throw new ConfigException(config.getAlgorithmClass() +
                     " is not a supported analysis class");
-        }
+        };
     }
 
-    private void runProgramAnalysis(ProgramAnalysis<?> analysis) {
+    private boolean runProgramAnalysis(ProgramAnalysis<?> analysis) {
         Object result = analysis.analyze();
         if (result != null) {
             World.get().storeResult(analysis.getId(), result);
         }
+        return false; // Program analyses does not modify IR
     }
 
-    private void runFunctionAnalysis(FunctionAnalysis<?> analysis) {
+    private boolean runFunctionAnalysis(FunctionAnalysis<?> analysis) {
         getFunctionScope()
                 .parallelStream()
                 .forEach(m -> {
@@ -116,18 +135,25 @@ public class AlgorithmManager {
                         ir.storeResult(analysis.getId(), result);
                     }
                 });
+        return false; // Function analyses does not modify IR
     }
 
     // Run optimization sequentially to avoid concurrent modifications
     // TODO: consider parallel optimizations
-    private void runOptimization(Optimization optimization) {
+    private boolean runOptimization(Optimization optimization) {
         List<Function> functions = getFunctionScope();
+        boolean modified = false;
 
         for (Function function : functions) {
             IR ir = function.getIR();
             IR optimizedIR = optimization.optimize(ir);
+            if (!optimizedIR.equals(ir)) {
+                modified = true;
+            }
             function.setIR(optimizedIR);
         }
+
+        return modified;
     }
 
     private List<Function> getFunctionScope() {
