@@ -15,4 +15,8 @@ public interface RegisterAllocator {
      */
     int getStackSize();
     Set<String> getUsedCalleeSavedRegisters();
+
+    // 新增：本函数使用到的所有 caller-saved（t0–t6）寄存器
+    // 供调用点在 call 前后成对保存/恢复
+    Set<String> getUsedCallerSavedRegisters();
 }

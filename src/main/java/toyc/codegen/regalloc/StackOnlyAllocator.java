@@ -32,4 +32,9 @@ public class StackOnlyAllocator implements RegisterAllocator {
     public Set<String> getUsedCalleeSavedRegisters() {
         return Collections.emptySet();  // 不使用任何 callee-saved 寄存器
     }
+
+     @Override
+    public Set<String> getUsedCallerSavedRegisters() {
+        return Collections.emptySet();  // 不使用任何 callee-saved 寄存器
+    }
 }

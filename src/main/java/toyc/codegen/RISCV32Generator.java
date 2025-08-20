@@ -76,10 +76,14 @@ public class RISCV32Generator implements AssemblyGenerator {
         boolean hasCallSite = ir.getStmts().stream().anyMatch(stmt -> stmt instanceof Call);  // 假设 Call 是调用语句类
         // 获取栈大小和 callee-saved 寄存器
         int stackSize = allocator.getStackSize();  // 局部变量（spilled）空间，已对齐
+        
         Set<String> calleeSavedSet = allocator.getUsedCalleeSavedRegisters();  // s0-s11
         LinkedHashSet<String> savedRegs = new LinkedHashSet<>();
+
+        // 改动1：凡使用了 s 寄存器，都必须保存/恢复（与是否存在调用无关）
+        savedRegs.addAll(calleeSavedSet);
+
         if (hasCallSite) {
-            savedRegs.addAll(calleeSavedSet);  // 只有在有函数调用时才保存 callee-saved
             savedRegs.add("ra");
         }
         // 计算保存区大小
@@ -102,6 +106,26 @@ public class RISCV32Generator implements AssemblyGenerator {
             for (String reg : savedRegs) {
                 builder.saveRegister(reg, currentOffset);
                 currentOffset += 4;
+            }
+        }
+
+        // 参数搬入自己的位置（避免 a0~a7 被后续调用覆盖）
+        List<Var> params = ir.getParams();
+        for (int i = 0; i < params.size(); i++) {
+            Var p = params.get(i);
+            LocalDataLocation dest = allocator.allocate(p.getName());
+            if (i < 8) {
+                String src = "a" + i;
+                if (dest.getType() == LocalDataLocation.LocationType.REGISTER) {
+                    if (!dest.getRegister().equals(src)) {
+                        builder.mv(dest.getRegister(), src);
+                    }
+                } else {
+                    builder.store("sw", src, dest.getOffset(), "sp");
+                }
+            } else {
+                // 超过8个参数：目前未实现规范的栈参数取法，可按需要扩展
+                // 暂不处理（你的 OJ 样例不涉及 >8 个参数）
             }
         }
 
@@ -325,48 +349,124 @@ public class RISCV32Generator implements AssemblyGenerator {
             return null;
         }
 
-        @Override
+        // @Override
+        // public Void visit(Call stmt) {
+        //     CallExp callExp = stmt.getCallExp();
+        //     Function callee = callExp.getFunction();
+
+        //     // 计算需要通过栈传递的参数数量和空间
+        //     int argCount = callExp.getArgCount();
+        //     int stackArgCount = Math.max(0, argCount - 8); // 超过8个的参数需要通过栈传递
+        //     int stackArgSize = stackArgCount * 4; // 每个参数4字节
+
+        //     // 为栈参数分配空间（从高地址向低地址分配）
+        //     if (stackArgSize > 0) {
+        //         builder.addi("sp", "sp", String.valueOf(-stackArgSize));
+        //     }
+
+        //     // Calling Convention:
+        //     // Load arguments into argument registers (a0, a1, ...)
+        //     for (int i = 0; i < callExp.getArgCount(); i++) {
+        //         Var arg = callExp.getArg(i);
+        //         String srcReg = loadOperand(arg);
+
+        //         if(i < 8) {
+        //             String argReg = "a" + i;
+        //             if (!srcReg.equals(argReg)) {
+        //                 builder.mv(argReg, srcReg);
+        //             }
+        //         }
+        //         else {
+        //             // 超过8个的参数：压入栈中
+        //             // 栈参数从低偏移开始存放：第9个参数在sp+0，第10个在sp+4，依此类推
+        //             int stackOffset = (i - 8) * 4;
+        //             builder.store("sw", srcReg, stackOffset, "sp");
+        //         }
+        //     }
+
+        //     builder.call(callee.getName());
+
+        //     if (stackArgSize > 0) {
+        //         builder.addi("sp", "sp", String.valueOf(stackArgSize));
+        //     }
+
+        //     // Store return value if needed
+        //     if (stmt.getResult() != null) {
+        //         LocalDataLocation resultLoc = allocator.allocate(stmt.getResult().getName());
+        //         if (resultLoc.getType() == LocalDataLocation.LocationType.STACK) {
+        //             builder.store("sw", "a0", resultLoc.getOffset(), "sp");
+        //         } else {
+        //             builder.mv(resultLoc.getRegister(), "a0");
+        //         }
+        //     }
+
+        //     return null;
+        // }
+        
+         @Override
         public Void visit(Call stmt) {
             CallExp callExp = stmt.getCallExp();
             Function callee = callExp.getFunction();
 
-            // 计算需要通过栈传递的参数数量和空间
             int argCount = callExp.getArgCount();
-            int stackArgCount = Math.max(0, argCount - 8); // 超过8个的参数需要通过栈传递
-            int stackArgSize = stackArgCount * 4; // 每个参数4字节
+            int stackArgCount = Math.max(0, argCount - 8);
+            int stackArgSize = stackArgCount * 4;
 
-            // 为栈参数分配空间（从高地址向低地址分配）
-            if (stackArgSize > 0) {
-                builder.addi("sp", "sp", String.valueOf(-stackArgSize));
+            // 需要在 call 处保存的 caller-saved（本函数正在使用的 t 寄存器）
+            Set<String> callerSavedSet = allocator.getUsedCallerSavedRegisters();
+            List<String> callerSaved = new java.util.ArrayList<>(callerSavedSet);
+            // 这些都是 t0..t6，与 a 寄存器不冲突
+
+            int callerSaveSize = callerSaved.size() * 4;
+
+            // 确保 call 时 sp 16 字节对齐：预留 栈参数 + 保存caller寄存器 + 填充
+            int reserve = stackArgSize + callerSaveSize;
+            int pad = (16 - (reserve % 16)) % 16;
+            int totalReserve = reserve + pad;
+            if (totalReserve > 0) {
+                builder.addi("sp", "sp", String.valueOf(-totalReserve));
             }
 
-            // Calling Convention:
-            // Load arguments into argument registers (a0, a1, ...)
-            for (int i = 0; i < callExp.getArgCount(); i++) {
+            // 先布置栈上传参：从 sp+0 开始依次存放第9个及以后参数
+            for (int i = 8; i < argCount; i++) {
                 Var arg = callExp.getArg(i);
                 String srcReg = loadOperand(arg);
+                int stackOffset = (i - 8) * 4; // 位于本次保留区的前部
+                builder.store("sw", srcReg, stackOffset, "sp");
+            }
 
-                if(i < 8) {
-                    String argReg = "a" + i;
-                    if (!srcReg.equals(argReg)) {
-                        builder.mv(argReg, srcReg);
-                    }
-                }
-                else {
-                    // 超过8个的参数：压入栈中
-                    // 栈参数从低偏移开始存放：第9个参数在sp+0，第10个在sp+4，依此类推
-                    int stackOffset = (i - 8) * 4;
-                    builder.store("sw", srcReg, stackOffset, "sp");
+            // 在预留区的后部保存 caller-saved t 寄存器
+            int saveBase = stackArgSize; // 从栈参数之后开始
+            for (int i = 0; i < callerSaved.size(); i++) {
+                String r = callerSaved.get(i);
+                builder.store("sw", r, saveBase + i * 4, "sp");
+            }
+
+            // 准备前8个寄存器参数
+            for (int i = 0; i < Math.min(argCount, 8); i++) {
+                Var arg = callExp.getArg(i);
+                String srcReg = loadOperand(arg);
+                String argReg = "a" + i;
+                if (!srcReg.equals(argReg)) {
+                    builder.mv(argReg, srcReg);
                 }
             }
 
+            // 真正调用
             builder.call(callee.getName());
 
-            if (stackArgSize > 0) {
-                builder.addi("sp", "sp", String.valueOf(stackArgSize));
+            // 恢复 caller-saved t 寄存器
+            for (int i = 0; i < callerSaved.size(); i++) {
+                String r = callerSaved.get(i);
+                builder.load("lw", r, saveBase + i * 4, "sp");
             }
 
-            // Store return value if needed
+            // 收回预留区
+            if (totalReserve > 0) {
+                builder.addi("sp", "sp", String.valueOf(totalReserve));
+            }
+
+            // 保存返回值到目标
             if (stmt.getResult() != null) {
                 LocalDataLocation resultLoc = allocator.allocate(stmt.getResult().getName());
                 if (resultLoc.getType() == LocalDataLocation.LocationType.STACK) {
