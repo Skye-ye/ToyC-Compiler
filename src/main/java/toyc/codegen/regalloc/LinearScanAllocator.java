@@ -41,6 +41,21 @@ public class LinearScanAllocator implements RegisterAllocator {
         for (int idx : T_REG_INDEX) freeTRegisters.add(idx);
         for (int idx : S_REG_INDEX) freeSRegisters.add(idx);
 
+        // 确保所有参数都有活跃区间
+        for (String paramName : paramVarNames) {
+            boolean hasInterval = false;
+            for (LiveInterval interval : this.intervals) {
+                if (interval.getVariable().equals(paramName)) {
+                    hasInterval = true;
+                    break;
+                }
+            }
+            if (!hasInterval) {
+                // 为参数添加一个从开始位置的"虚拟"活跃区间
+                this.intervals.add(new LiveInterval(0, 1, paramName));
+            }
+        }
+
         // 不再为参数绑定 a0~a7，参数当作普通局部变量参与分配，但优先 s 寄存器
         allocateRegisters();
     }
