@@ -585,13 +585,13 @@ public class RISCV32Generator implements AssemblyGenerator {
          */
         // 添加一个计数器跟踪当前使用的临时寄存器
         private int tempRegCounter = 0;
-        
+
         private String loadOperand(RValue operand) {
             if (operand instanceof Var var) {
                 LocalDataLocation location = allocator.allocate(var.getName());
                 if (location.getType() == LocalDataLocation.LocationType.STACK) {
                     // 循环使用t0-t6的临时寄存器，避免总是覆盖t0
-                    String tempReg = "t" + (tempRegCounter % 7);
+                    String tempReg = "t" + (tempRegCounter % 2);
                     tempRegCounter++;
                     builder.load("lw", tempReg, location.getOffset(), "sp");
                     return tempReg;
@@ -600,7 +600,7 @@ public class RISCV32Generator implements AssemblyGenerator {
                 }
             } else if (operand instanceof IntLiteral intLit) {
                 // 同样循环使用不同的临时寄存器
-                String tempReg = "t" + (tempRegCounter % 7);
+                String tempReg = "t" + (tempRegCounter % 2);
                 tempRegCounter++;
                 builder.li(tempReg, intLit.getValue());
                 return tempReg;
