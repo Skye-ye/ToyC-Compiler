@@ -44,15 +44,34 @@ public class LinearScanAllocator implements RegisterAllocator {
         // 确保所有参数都有活跃区间
         for (String paramName : paramVarNames) {
             boolean hasInterval = false;
-            for (LiveInterval interval : this.intervals) {
+            int idx = -1;
+            
+            // 查找是否有该参数的活跃区间
+            for (int i = 0; i < this.intervals.size(); i++) {
+                LiveInterval interval = this.intervals.get(i);
                 if (interval.getVariable().equals(paramName)) {
                     hasInterval = true;
+                    idx = i;
                     break;
                 }
             }
+            
             if (!hasInterval) {
-                // 为参数添加一个从开始位置的"虚拟"活跃区间
-                this.intervals.add(new LiveInterval(0, 1, paramName));
+                // 为参数添加一个新的活跃区间
+                this.intervals.add(new LiveInterval(0, Integer.MAX_VALUE / 2, paramName));
+            } else {
+                // 替换为扩展的活跃区间
+                LiveInterval old = this.intervals.get(idx);
+                LiveInterval extended = new LiveInterval(
+                    old.getStart(), 
+                    Math.max(old.getEnd(), Integer.MAX_VALUE / 3),
+                    old.getVariable()
+                );
+                // 如果已经分配了寄存器，保留它
+                if (old.getRegister() != -1) {
+                    extended.setRegister(old.getRegister());
+                }
+                this.intervals.set(idx, extended);
             }
         }
 
@@ -83,6 +102,11 @@ public class LinearScanAllocator implements RegisterAllocator {
     @Override
     public Set<String> getUsedCallerSavedRegisters() {
         return Collections.unmodifiableSet(usedCallerSavedRegisters);
+    }
+
+    @Override
+    public Map<String, LocalDataLocation> getAllLocations() {
+        return Collections.unmodifiableMap(varToLocation);
     }
 
     private void allocateRegisters() {

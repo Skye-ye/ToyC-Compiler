@@ -13,6 +13,7 @@ import toyc.ir.stmt.*;
 import toyc.language.Function;
 import toyc.language.Program;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -403,7 +404,7 @@ public class RISCV32Generator implements AssemblyGenerator {
         //     return null;
         // }
         
-         @Override
+        @Override
         public Void visit(Call stmt) {
             CallExp callExp = stmt.getCallExp();
             Function callee = callExp.getFunction();
@@ -413,13 +414,15 @@ public class RISCV32Generator implements AssemblyGenerator {
             int stackArgSize = stackArgCount * 4;
 
             // 需要在 call 处保存的 caller-saved（本函数正在使用的 t 寄存器）
-            Set<String> callerSavedSet = allocator.getUsedCallerSavedRegisters();
-            List<String> callerSaved = new java.util.ArrayList<>(callerSavedSet);
-            // 这些都是 t0..t6，与 a 寄存器不冲突
+            Set<String> callerSavedSet = new HashSet<>(allocator.getUsedCallerSavedRegisters());
+            // 始终保存 t0 和 t1，因为它们被用作临时寄存器
+            callerSavedSet.add("t0");
+            callerSavedSet.add("t1");
+            List<String> callerSaved = new ArrayList<>(callerSavedSet);
 
             int callerSaveSize = callerSaved.size() * 4;
 
-            // 确保 call 时 sp 16 字节对齐：预留 栈参数 + 保存caller寄存器 + 填充
+            // 确保 call 时 sp 16 字节对齐
             int reserve = stackArgSize + callerSaveSize;
             int pad = (16 - (reserve % 16)) % 16;
             int totalReserve = reserve + pad;
@@ -427,22 +430,22 @@ public class RISCV32Generator implements AssemblyGenerator {
                 builder.addi("sp", "sp", String.valueOf(-totalReserve));
             }
 
-            // 先布置栈上传参：从 sp+0 开始依次存放第9个及以后参数
-            for (int i = 8; i < argCount; i++) {
-                Var arg = callExp.getArg(i);
-                String srcReg = loadOperand(arg);
-                int stackOffset = (i - 8) * 4; // 位于本次保留区的前部
-                builder.store("sw", srcReg, stackOffset, "sp");
-            }
-
-            // 在预留区的后部保存 caller-saved t 寄存器
-            int saveBase = stackArgSize; // 从栈参数之后开始
+            // 先保存 caller-saved 寄存器，再准备参数
+            int saveBase = stackArgSize;
             for (int i = 0; i < callerSaved.size(); i++) {
                 String r = callerSaved.get(i);
                 builder.store("sw", r, saveBase + i * 4, "sp");
             }
 
-            // 准备前8个寄存器参数
+            // 栈上参数
+            for (int i = 8; i < argCount; i++) {
+                Var arg = callExp.getArg(i);
+                String srcReg = loadOperand(arg);
+                int stackOffset = (i - 8) * 4;
+                builder.store("sw", srcReg, stackOffset, "sp");
+            }
+
+            // 准备寄存器参数
             for (int i = 0; i < Math.min(argCount, 8); i++) {
                 Var arg = callExp.getArg(i);
                 String srcReg = loadOperand(arg);
@@ -452,21 +455,21 @@ public class RISCV32Generator implements AssemblyGenerator {
                 }
             }
 
-            // 真正调用
+            // 调用函数
             builder.call(callee.getName());
 
-            // 恢复 caller-saved t 寄存器
+            // 恢复寄存器
             for (int i = 0; i < callerSaved.size(); i++) {
                 String r = callerSaved.get(i);
                 builder.load("lw", r, saveBase + i * 4, "sp");
             }
 
-            // 收回预留区
+            // 收回栈空间
             if (totalReserve > 0) {
                 builder.addi("sp", "sp", String.valueOf(totalReserve));
             }
 
-            // 保存返回值到目标
+            // 处理返回值
             if (stmt.getResult() != null) {
                 LocalDataLocation resultLoc = allocator.allocate(stmt.getResult().getName());
                 if (resultLoc.getType() == LocalDataLocation.LocationType.STACK) {
@@ -566,7 +569,8 @@ public class RISCV32Generator implements AssemblyGenerator {
 
                 LocalDataLocation location = allocator.allocate(var.getName());
                 if (location == null) {
-                    throw new IllegalStateException("No location allocated for variable: " + var.getName());
+                    throw new IllegalStateException("No location allocated for variable: " + var.getName() + 
+                                          ", varToLocation keys: " + allocator.getAllLocations().keySet());
                 }
                 if (location.getType() == LocalDataLocation.LocationType.STACK) {
                     builder.load("lw", "t0", location.getOffset(), "sp");
