@@ -317,6 +317,20 @@ public class RISCV32Generator implements AssemblyGenerator {
                     case DIV -> "div";
                     case REM -> "rem";
                 };
+
+                // 修复关键问题：避免重复使用同一寄存器导致的错误计算
+                // 避免类似 add t2, t0, t0 这样的指令
+                if (src1.equals(src2)) {
+                    // 如果两个源操作数相同，使用不同的寄存器加载第二个操作数
+                    if (binaryExp.getOperand2() instanceof Var var) {
+                        LocalDataLocation loc = allocator.allocate(var.getName());
+                        if (loc.getType() == LocalDataLocation.LocationType.STACK) {
+                            builder.load("lw", "t1", loc.getOffset(), "sp");
+                            src2 = "t1";
+                        }
+                    }
+                }
+
                 builder.op3(riscvOp, destReg, src1, src2);
             } else if (binaryExp.getOperator() instanceof ConditionExp.Op condOp) {
                 switch (condOp) {
@@ -422,15 +436,20 @@ public class RISCV32Generator implements AssemblyGenerator {
 
             int callerSaveSize = callerSaved.size() * 4;
 
-            // 确保 call 时 sp 16 字节对齐
+            // 确保call时sp 16字节对齐，同时避免使用局部变量的空间
             int reserve = stackArgSize + callerSaveSize;
             int pad = (16 - (reserve % 16)) % 16;
             int totalReserve = reserve + pad;
+            
+            // 在当前栈帧内分配足够的空间，确保不会覆盖0(sp)和4(sp)的局部变量
+            // 使用12(sp)以后的空间来保存寄存器
+            int baseOffset = 12;  // 跳过前12字节，这些通常用于局部变量
+            
             if (totalReserve > 0) {
                 builder.addi("sp", "sp", String.valueOf(-totalReserve));
             }
-
-            // 先保存 caller-saved 寄存器，再准备参数
+            
+            // 先保存caller-saved寄存器，再准备参数
             int saveBase = stackArgSize;
             for (int i = 0; i < callerSaved.size(); i++) {
                 String r = callerSaved.get(i);
@@ -564,27 +583,52 @@ public class RISCV32Generator implements AssemblyGenerator {
          * Load a variable operand into a register and return the register name.
          * Uses temporary registers t0, t1 as needed.
          */
+        // 添加一个计数器跟踪当前使用的临时寄存器
+        private int tempRegCounter = 0;
+        
         private String loadOperand(RValue operand) {
             if (operand instanceof Var var) {
-
                 LocalDataLocation location = allocator.allocate(var.getName());
-                if (location == null) {
-                    throw new IllegalStateException("No location allocated for variable: " + var.getName() + 
-                                          ", varToLocation keys: " + allocator.getAllLocations().keySet());
-                }
                 if (location.getType() == LocalDataLocation.LocationType.STACK) {
-                    builder.load("lw", "t0", location.getOffset(), "sp");
-                    return "t0";
+                    // 循环使用t0-t6的临时寄存器，避免总是覆盖t0
+                    String tempReg = "t" + (tempRegCounter % 7);
+                    tempRegCounter++;
+                    builder.load("lw", tempReg, location.getOffset(), "sp");
+                    return tempReg;
                 } else {
                     return location.getRegister();
                 }
             } else if (operand instanceof IntLiteral intLit) {
-                builder.li("t1", intLit.getValue());
-                return "t1";
+                // 同样循环使用不同的临时寄存器
+                String tempReg = "t" + (tempRegCounter % 7);
+                tempRegCounter++;
+                builder.li(tempReg, intLit.getValue());
+                return tempReg;
             } else {
                 throw new UnsupportedOperationException("Unsupported operand type: " + operand.getClass());
             }
         }
+        // private String loadOperand(RValue operand) {
+        //     if (operand instanceof Var var) {
+
+        //         LocalDataLocation location = allocator.allocate(var.getName());
+        //         if (location == null) {
+        //             throw new IllegalStateException("No location allocated for variable: " + var.getName() + 
+        //                                   ", varToLocation keys: " + allocator.getAllLocations().keySet());
+        //         }
+        //         if (location.getType() == LocalDataLocation.LocationType.STACK) {
+        //             builder.load("lw", "t0", location.getOffset(), "sp");
+        //             return "t0";
+        //         } else {
+        //             return location.getRegister();
+        //         }
+        //     } else if (operand instanceof IntLiteral intLit) {
+        //         builder.li("t1", intLit.getValue());
+        //         return "t1";
+        //     } else {
+        //         throw new UnsupportedOperationException("Unsupported operand type: " + operand.getClass());
+        //     }
+        // }
 
         /**
          * Map binary expression operators to RISC-V instructions.

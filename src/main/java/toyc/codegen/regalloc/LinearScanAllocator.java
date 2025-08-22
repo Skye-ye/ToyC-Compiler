@@ -17,12 +17,13 @@ public class LinearScanAllocator implements RegisterAllocator {
 
     private static final int[] T_REG_INDEX = {0, 1, 2, 3, 4, 5, 6};
     private static final int[] S_REG_INDEX = {7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18};
-    private static final int NUM_REGISTERS = REGISTERS.length;
+    private static final int   NUM_REGISTERS = REGISTERS.length;
 
+    private final Map<String, Integer>           localVarOffsets = new HashMap<>(); //用于跟踪变量的栈位置
     private final Map<String, LocalDataLocation> varToLocation = new HashMap<>();
-    private final ArrayList<LiveInterval> intervals;
-    private final List<String> paramVarNames; // 形参名字，来自 IR
-    private final Set<LiveInterval> activeSortedByEnd = new TreeSet<>((a,b)->{
+    private final ArrayList<LiveInterval>        intervals;
+    private final List<String>                   paramVarNames; // 形参名字，来自 IR
+    private final Set<LiveInterval>              activeSortedByEnd = new TreeSet<>((a,b)->{
         int c = Integer.compare(a.getEnd(), b.getEnd());
         if (c != 0) return c;
         c = Integer.compare(a.getStart(), b.getStart());
@@ -150,12 +151,15 @@ public class LinearScanAllocator implements RegisterAllocator {
             }
         }
 
-        // 为所有 interval 生成最终位置
+        // 为所有interval生成最终位置
         for (LiveInterval interval : intervals) {
             if (varToLocation.containsKey(interval.getVariable())) continue;
             LocalDataLocation loc;
             if (interval.getRegister() == -1) {
-                loc = LocalDataLocation.createStack(currentOffset);
+                // 记录每个局部变量的栈位置，保证一致性
+                int offset = localVarOffsets.getOrDefault(interval.getVariable(), currentOffset);
+                loc = LocalDataLocation.createStack(offset);
+                localVarOffsets.put(interval.getVariable(), offset);
                 currentOffset += 4;
             } else {
                 loc = LocalDataLocation.createRegister(REGISTERS[interval.getRegister()]);
