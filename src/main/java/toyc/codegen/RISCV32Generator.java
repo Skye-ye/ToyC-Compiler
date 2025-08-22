@@ -253,6 +253,11 @@ public class RISCV32Generator implements AssemblyGenerator {
                 builder.j(functionExitLabel);
     }
         }
+
+        // 新增一个方法用于获取非t0/t1的临时寄存器
+        private String getOtherTempReg() {
+            return "t2"; // 使用t2作为其他操作的临时寄存器
+        }
         
 
         @Override
@@ -263,8 +268,10 @@ public class RISCV32Generator implements AssemblyGenerator {
             if (literal instanceof IntLiteral intLit) {
                 LocalDataLocation location = allocator.allocate(lvalue.getName());
                 if (location.getType() == LocalDataLocation.LocationType.STACK) {
-                    builder.li("t0", intLit.getValue());
-                    builder.store("sw", "t0", location.getOffset(), "sp");
+                    String tempReg = "t" + (tempRegCounter % 2);
+                    tempRegCounter++;
+                    builder.li(tempReg, intLit.getValue());
+                    builder.store("sw", tempReg, location.getOffset(), "sp");
                 } else {
                     builder.li(location.getRegister(), intLit.getValue());
                 }
@@ -283,8 +290,10 @@ public class RISCV32Generator implements AssemblyGenerator {
 
             if (srcLoc.getType() == LocalDataLocation.LocationType.STACK) {
                 if (destLoc.getType() == LocalDataLocation.LocationType.STACK) {
-                    builder.load("lw", "t0", srcLoc.getOffset(), "sp");
-                    builder.store("sw", "t0", destLoc.getOffset(), "sp");
+                    String tempReg = "t" + (tempRegCounter % 2);
+                    tempRegCounter++;
+                    builder.load("lw", tempReg, srcLoc.getOffset(), "sp");
+                    builder.store("sw", tempReg, destLoc.getOffset(), "sp");
                 } else {
                     builder.load("lw", destLoc.getRegister(), srcLoc.getOffset(), "sp");
                 }
@@ -307,7 +316,7 @@ public class RISCV32Generator implements AssemblyGenerator {
             String src2 = loadOperand(binaryExp.getOperand2());
             LocalDataLocation destLoc = allocator.allocate(lvalue.getName());
             
-            String destReg = (destLoc.getType() == LocalDataLocation.LocationType.STACK) ? "t0" : destLoc.getRegister();
+            String destReg = (destLoc.getType() == LocalDataLocation.LocationType.STACK) ? getOtherTempReg() : destLoc.getRegister();
 
             if (binaryExp.getOperator() instanceof ArithmeticExp.Op arithOp) {
                 String riscvOp = switch (arithOp) {
@@ -317,19 +326,6 @@ public class RISCV32Generator implements AssemblyGenerator {
                     case DIV -> "div";
                     case REM -> "rem";
                 };
-
-                // 修复关键问题：避免重复使用同一寄存器导致的错误计算
-                // 避免类似 add t2, t0, t0 这样的指令
-                if (src1.equals(src2)) {
-                    // 如果两个源操作数相同，使用不同的寄存器加载第二个操作数
-                    if (binaryExp.getOperand2() instanceof Var var) {
-                        LocalDataLocation loc = allocator.allocate(var.getName());
-                        if (loc.getType() == LocalDataLocation.LocationType.STACK) {
-                            builder.load("lw", "t1", loc.getOffset(), "sp");
-                            src2 = "t1";
-                        }
-                    }
-                }
 
                 builder.op3(riscvOp, destReg, src1, src2);
             } else if (binaryExp.getOperator() instanceof ConditionExp.Op condOp) {
@@ -358,7 +354,7 @@ public class RISCV32Generator implements AssemblyGenerator {
             }
 
             if (destLoc.getType() == LocalDataLocation.LocationType.STACK) {
-                builder.store("sw", "t0", destLoc.getOffset(), "sp");
+                builder.store("sw", destReg, destLoc.getOffset(), "sp");
             }
 
             return null;
@@ -563,8 +559,9 @@ public class RISCV32Generator implements AssemblyGenerator {
             if (unaryExp instanceof NegExp) {
                 LocalDataLocation destLoc = allocator.allocate(lvalue.getName());
                 if (destLoc.getType() == LocalDataLocation.LocationType.STACK) {
-                    builder.op3("sub", "t0", "zero", srcReg);  // t0 = 0 - src (negation)
-                    builder.store("sw", "t0", destLoc.getOffset(), "sp");
+                    String tempReg = getOtherTempReg();
+                    builder.op3("sub", tempReg, "zero", srcReg);  // tempReg = 0 - src (negation)
+                    builder.store("sw", tempReg, destLoc.getOffset(), "sp");
                 } else {
                     builder.op3("sub", destLoc.getRegister(), "zero", srcReg);  // dest = 0 - src
                 }
