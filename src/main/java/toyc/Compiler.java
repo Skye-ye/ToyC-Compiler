@@ -37,7 +37,7 @@ public class Compiler {
         }, "ToyC Compiler");
         LoggerConfigs.reconfigure();
         printIR();
-        generateAssembly();
+        // generateAssembly();
     }
 
     private static Options processArgs(String... args) {

@@ -127,7 +127,6 @@ public class AlgorithmManager {
 
     private boolean runFunctionAnalysis(FunctionAnalysis<?> analysis) {
         getFunctionScope()
-                .parallelStream()
                 .forEach(m -> {
                     IR ir = m.getIR();
                     Object result = analysis.analyze(ir);
@@ -141,17 +140,17 @@ public class AlgorithmManager {
     // Run optimization sequentially to avoid concurrent modifications
     // TODO: consider parallel optimizations
     private boolean runOptimization(Optimization optimization) {
-        List<Function> functions = getFunctionScope();
+        // List<Function> functions = getFunctionScope();
         boolean modified = false;
 
-        for (Function function : functions) {
-            IR ir = function.getIR();
-            IR optimizedIR = optimization.optimize(ir);
-            if (!optimizedIR.equals(ir)) {
-                modified = true;
-            }
-            function.setIR(optimizedIR);
+        Function mainFunction = World.get().getMainFunction();
+
+        IR ir = mainFunction.getIR();
+        IR optimizedIR = optimization.optimize(ir);
+        if (!optimizedIR.equals(ir)) {
+            modified = true;
         }
+        mainFunction.setIR(optimizedIR);
 
         return modified;
     }
