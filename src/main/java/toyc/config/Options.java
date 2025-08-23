@@ -24,7 +24,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Predicate;
 
 /**
@@ -162,28 +161,6 @@ public class Options implements Serializable {
 
     public Map<String, String> getAnalyses() {
         return analyses;
-    }
-
-    @JsonProperty
-    @Option(names = {"-g", "--gen-plan-file"},
-            description = "Merely generate analysis plan",
-            defaultValue = "false")
-    private boolean onlyGenPlan;
-
-    public boolean isOnlyGenPlan() {
-        return onlyGenPlan;
-    }
-
-    @JsonProperty
-    @Option(names = {"-kr", "--keep-result"},
-            description = "The analyses whose results are kept" +
-                    " (multiple analyses are split by ',', default: ${DEFAULT-VALUE})",
-            split = ",", paramLabel = "<analysisID>",
-            defaultValue = Plan.KEEP_ALL)
-    private Set<String> keepResult;
-
-    public Set<String> getKeepResult() {
-        return keepResult;
     }
 
     /**
@@ -420,8 +397,6 @@ public class Options implements Serializable {
                 ", scope=" + scope +
                 ", planFile=" + planFile +
                 ", analyses=" + analyses +
-                ", onlyGenPlan=" + onlyGenPlan +
-                ", keepResult=" + keepResult +
                 '}';
     }
 }

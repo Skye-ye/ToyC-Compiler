@@ -44,15 +44,7 @@ public class RISCV32Generator implements AssemblyGenerator {
      */
     public String generateProgramAssembly(List<Function> functions) {
         StringBuilder sb = new StringBuilder();
-        
-        // 添加汇编文件头部
-        // sb.append("# Generated RISC-V 32-bit assembly code\n");
-        // sb.append("# Target: RISC-V 32-bit\n\n");
-        
-        // 添加段声明
-        sb.append(".text\n");
-        sb.append(".align 2\n\n");
-        
+
         // 生成所有函数的汇编代码
         for (Function function : functions) {
             sb.append(generateFunctionAssembly(function));
@@ -77,7 +69,7 @@ public class RISCV32Generator implements AssemblyGenerator {
         boolean hasCallSite = ir.getStmts().stream().anyMatch(stmt -> stmt instanceof Call);  // 假设 Call 是调用语句类
         // 获取栈大小和 callee-saved 寄存器
         int stackSize = allocator.getStackSize();  // 局部变量（spilled）空间，已对齐
-        
+
         Set<String> calleeSavedSet = allocator.getUsedCalleeSavedRegisters();  // s0-s11
         LinkedHashSet<String> savedRegs = new LinkedHashSet<>();
 
@@ -130,7 +122,7 @@ public class RISCV32Generator implements AssemblyGenerator {
             }
         }
 
-        
+
         // --- Function Body ---
         // Generate code for each statement using visitor pattern
         StmtCodeGenerator codeGen = new StmtCodeGenerator(builder, allocator, functionExitLabel);
@@ -200,6 +192,7 @@ public class RISCV32Generator implements AssemblyGenerator {
         private final RegisterAllocator allocator;
         private final Map<Stmt, String> stmtLabels;
         private final String functionExitLabel;
+        private int labelCounter = 0;
 
         public StmtCodeGenerator(RISCV32AsmBuilder builder, RegisterAllocator allocator, String functionExitLabel) {
             this.builder = builder;
@@ -258,7 +251,7 @@ public class RISCV32Generator implements AssemblyGenerator {
         private String getOtherTempReg() {
             return "t2"; // 使用t2作为其他操作的临时寄存器
         }
-        
+
 
         @Override
         public Void visit(AssignLiteral stmt) {
@@ -413,7 +406,7 @@ public class RISCV32Generator implements AssemblyGenerator {
 
         //     return null;
         // }
-        
+
         @Override
         public Void visit(Call stmt) {
             CallExp callExp = stmt.getCallExp();
@@ -436,15 +429,15 @@ public class RISCV32Generator implements AssemblyGenerator {
             int reserve = stackArgSize + callerSaveSize;
             int pad = (16 - (reserve % 16)) % 16;
             int totalReserve = reserve + pad;
-            
+
             // 在当前栈帧内分配足够的空间，确保不会覆盖0(sp)和4(sp)的局部变量
             // 使用12(sp)以后的空间来保存寄存器
             int baseOffset = 12;  // 跳过前12字节，这些通常用于局部变量
-            
+
             if (totalReserve > 0) {
                 builder.addi("sp", "sp", String.valueOf(-totalReserve));
             }
-            
+
             // 先保存caller-saved寄存器，再准备参数
             int saveBase = stackArgSize;
             for (int i = 0; i < callerSaved.size(); i++) {
@@ -610,7 +603,7 @@ public class RISCV32Generator implements AssemblyGenerator {
 
         //         LocalDataLocation location = allocator.allocate(var.getName());
         //         if (location == null) {
-        //             throw new IllegalStateException("No location allocated for variable: " + var.getName() + 
+        //             throw new IllegalStateException("No location allocated for variable: " + var.getName() +
         //                                   ", varToLocation keys: " + allocator.getAllLocations().keySet());
         //         }
         //         if (location.getType() == LocalDataLocation.LocationType.STACK) {

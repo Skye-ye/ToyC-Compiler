@@ -25,6 +25,23 @@ public final class Evaluator {
             return Value.makeConstant(((IntLiteral) exp).getValue());
         } else if (exp instanceof Var var) {
             return in.get(var);
+        } else if (exp instanceof UnaryExp unary) {
+            Value v = evaluate(unary.getOperand(), in);
+            if (v.isConstant()) {
+                if (unary instanceof NegExp) {
+                    return Value.makeConstant(-v.getConstant());
+                } else if (unary instanceof NotExp) {
+                    if (v.getConstant() != 0) {
+                        return Value.makeConstant(0);
+                    } else {
+                        return Value.makeConstant(1);
+                    }
+                }
+            } else if (v.isNAC()) {
+                return Value.getNAC();
+            } else {
+                return Value.getUndef();
+            }
         } else if (exp instanceof BinaryExp binary) {
             BinaryExp.Op op = binary.getOperator();
             Value v1 = evaluate(binary.getOperand1(), in);

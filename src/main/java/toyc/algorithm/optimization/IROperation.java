@@ -4,6 +4,7 @@ import toyc.ir.IR;
 import toyc.ir.MutableIR;
 import toyc.ir.stmt.Goto;
 import toyc.ir.stmt.If;
+import toyc.ir.stmt.JumpStmt;
 import toyc.ir.stmt.Stmt;
 
 import javax.annotation.Nonnull;
@@ -79,6 +80,54 @@ public class IROperation {
     }
 
     /**
+     * Replace the specified statement with a list of new statements in the IR.
+     * If the statement to be replaced is a target of other statements (e.g., Goto, If),
+     * it updates those statements to point to the first new statement.
+     *
+     * @param stmt     the statement to replace
+     * @param newStmts the list of new statements to insert
+     */
+    public void replace(@Nonnull Stmt stmt, @Nonnull List<Stmt> newStmts) {
+        Stmt firstStmt = newStmts.getFirst();
+        updateTargets(stmt, firstStmt);
+        for (Stmt newStmt : newStmts) {
+            newStmt.setLineNumber(stmt.getLineNumber());
+            ir.insertBefore(stmt, newStmt);
+        }
+        ir.removeStmt(stmt);
+    }
+
+    public void insertUnrolledLoop(@Nonnull Stmt header, @Nonnull List<Stmt> body) {
+        // Check if the header statement still exists in the IR
+        if (!ir.contains(header)) {
+            // Header was removed by previous optimizations, skip loop unrolling
+            return;
+        }
+        
+        Stmt newHeader = body.getFirst();
+        for (JumpStmt stmt : ir.getPredecessors(header)) {
+            // Only update the jump stmts before old header
+            if (stmt.getIndex() < header.getIndex()) {
+                stmt.setTarget(newHeader);
+            }
+        }
+        for (Stmt bodyStmt : body) {
+            bodyStmt.setLineNumber(header.getLineNumber());
+            ir.insertBefore(header, bodyStmt);
+        }
+    }
+
+    /**
+     * Get the next statement after the specified statement in the IR.
+     *
+     * @param stmt the statement for which to find the next statement
+     * @return the next statement, or null if there is no next statement
+     */
+    public Stmt getNextStmt(@Nonnull Stmt stmt) {
+        return ir.getNextStmt(stmt);
+    }
+
+    /**
      * Get the current IR as an immutable copy.
      */
     @Nonnull
@@ -89,21 +138,16 @@ public class IROperation {
 
     /**
      * Update the targets of statements that reference the old statement.
+     *
      * @param oldStmt the old statement to be replaced
      * @param newStmt the new statement to set as the target
      */
     private void updateTargets(@Nonnull Stmt oldStmt, @Nonnull Stmt newStmt) {
-        Set<Stmt> sourceStmts = ir.getPredecessors(oldStmt);
+        Set<JumpStmt> sourceStmts = ir.getPredecessors(oldStmt);
         if (!sourceStmts.isEmpty()) {
-            for (Stmt sourceStmt : sourceStmts) {
-                if (sourceStmt instanceof Goto gotoStmt) {
-                    if (gotoStmt.getTarget() == oldStmt) {
-                        gotoStmt.setTarget(newStmt);
-                    }
-                } else if (sourceStmt instanceof If ifStmt) {
-                    if (ifStmt.getTarget() == oldStmt) {
-                        ifStmt.setTarget(newStmt);
-                    }
+            for (JumpStmt sourceStmt : sourceStmts) {
+                if (sourceStmt.getTarget() == oldStmt) {
+                    sourceStmt.setTarget(newStmt);
                 }
             }
         }
@@ -118,17 +162,9 @@ public class IROperation {
         List<Stmt> toRemove = new ArrayList<>();
 
         for (Stmt stmt : stmts) {
-            if (stmt instanceof If ifStmt) {
+            if (stmt instanceof JumpStmt jumpStmt) {
                 Stmt nextStmt = ir.getNextStmt(stmt);
-                Stmt target = ifStmt.getTarget();
-                assert target != null;
-                assert nextStmt != null;
-                if (target == nextStmt) {
-                    toRemove.add(stmt);
-                }
-            } else if (stmt instanceof Goto gotoStmt) {
-                Stmt nextStmt = ir.getNextStmt(stmt);
-                Stmt target = gotoStmt.getTarget();
+                Stmt target = jumpStmt.getTarget();
                 assert target != null;
                 assert nextStmt != null;
                 if (target == nextStmt) {

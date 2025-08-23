@@ -1,36 +1,48 @@
 package toyc.config;
 
-import toyc.util.graph.Graph;
-import toyc.util.graph.SimpleGraph;
-
 import java.util.List;
-import java.util.Set;
 
 /**
  * Contains information about analysis execution plan.
  *
  * @param analyses        list of analyses to be executed.
- * @param dependenceGraph graph that describes dependencies among analyses.
- *                        This graph is used to clear unused analysis results.
- * @param keepResult      set of IDs for the analyses whose results are kept.
  */
 public record Plan(
-        List<AlgorithmConfig> analyses,
-        Graph<AlgorithmConfig> dependenceGraph,
-        Set<String> keepResult) {
+        List<PlanElement> analyses) implements PlanElement {
 
-    /**
-     * Special element for {@link #keepResult}, which means
-     * to keep results of all analyses.
-     */
-    public static final String KEEP_ALL = "$KEEP-ALL";
-
-    private static final Plan EMPTY = new Plan(List.of(), new SimpleGraph<>(), Set.of());
+    private static final Plan EMPTY = new Plan(List.of());
 
     /**
      * @return an empty plan.
      */
     public static Plan emptyPlan() {
         return EMPTY;
+    }
+
+    /**
+     * Convenience method to get all AlgorithmConfig objects recursively
+     */
+    public List<AlgorithmConfig> getAllAnalyses() {
+        return analyses.stream()
+                .flatMap(element -> switch (element) {
+                    case AlgorithmConfig config -> java.util.stream.Stream.of(config);
+                    case Plan nestedPlan -> nestedPlan.getAllAnalyses().stream();
+                })
+                .toList();
+    }
+
+    /**
+     * Convenience method to get all nested Plans recursively
+     */
+    public List<Plan> getAllNestedPlans() {
+        return analyses.stream()
+                .flatMap(element -> switch (element) {
+                    case AlgorithmConfig config -> java.util.stream.Stream.empty();
+                    case Plan nestedPlan -> java.util.stream.Stream.concat(
+                            java.util.stream.Stream.of(nestedPlan),
+                            nestedPlan.getAllNestedPlans().stream()
+                    );
+                })
+                .toList();
     }
 }

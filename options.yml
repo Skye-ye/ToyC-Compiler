@@ -6,10 +6,4 @@ outputDir: output
 preBuildIR: false
 worldCacheMode: false
 scope: REACHABLE
-planFile: null
-onlyGenPlan: false
-analyses:
-  const-fold: ""
-  dead-code-elim: ""
-keepResult:
-  - $KEEP-ALL
+planFile: toyc-plan.yml

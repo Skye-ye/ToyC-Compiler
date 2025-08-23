@@ -18,16 +18,22 @@ public class CFGBuilder extends FunctionAnalysis<CFG<Stmt>> {
 
     private static final String CFG_DIR = "cfg";
 
+    private final boolean isDump;
 
     private final File dumpDir;
 
     public CFGBuilder(AlgorithmConfig config) {
         super(config);
-        dumpDir = new File(World.get().getOptions().getOutputDir(), CFG_DIR);
-        if (!dumpDir.exists()) {
-            dumpDir.mkdirs();
+        isDump = getOptions().getBoolean("dump");
+        if (isDump) {
+            dumpDir = new File(World.get().getOptions().getOutputDir(), CFG_DIR);
+            if (!dumpDir.exists()) {
+                dumpDir.mkdirs();
+            }
+            logger.info("Dumping CFGs in {}", dumpDir.getAbsolutePath());
+        } else {
+            dumpDir = null;
         }
-        logger.info("Dumping CFGs in {}", dumpDir.getAbsolutePath());
     }
 
     private static void buildNormalEdges(StmtCFG cfg) {
@@ -60,7 +66,9 @@ public class CFGBuilder extends FunctionAnalysis<CFG<Stmt>> {
         cfg.setEntry(new Nop());
         cfg.setExit(new Nop());
         buildNormalEdges(cfg);
-        CFGDumper.dumpDotFile(cfg, dumpDir);
+        if (isDump) {
+            CFGDumper.dumpDotFile(cfg, dumpDir);
+        }
         return cfg;
     }
 }

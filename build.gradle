@@ -50,18 +50,9 @@ test {
 }
 
 compileJava {
-    options.compilerArgs += [
-            '-Xlint:unchecked',
-            '-Xlint:deprecation',
-            '-Xlint:rawtypes'
-    ]
     options.encoding = 'UTF-8'
 }
 
 compileTestJava {
-    options.compilerArgs += [
-            '-Xlint:unchecked',
-            '-Xlint:deprecation'
-    ]
     options.encoding = 'UTF-8'
 }

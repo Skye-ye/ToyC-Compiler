@@ -54,7 +54,7 @@ public class CachedWorldBuilder implements WorldBuilder {
     }
 
     @Override
-    public void build(Options options, List<AlgorithmConfig> analyses) {
+    public void build(Options options) {
         if (!options.isWorldCacheMode()) {
             logger.error("Using CachedWorldBuilder,"
                     + " but world cache mode option is not enabled");
@@ -64,7 +64,7 @@ public class CachedWorldBuilder implements WorldBuilder {
         if (loadCache(options, worldCacheFile)) {
             return;
         }
-        runWorldBuilder(options, analyses);
+        runWorldBuilder(options);
         saveCache(worldCacheFile);
     }
 
@@ -92,11 +92,11 @@ public class CachedWorldBuilder implements WorldBuilder {
         return false;
     }
 
-    private void runWorldBuilder(Options options, List<AlgorithmConfig> analyses) {
+    private void runWorldBuilder(Options options) {
         logger.info("Running the WorldBuilder ...");
         Timer timer = new Timer("Run the WorldBuilder");
         timer.start();
-        delegate.build(options, analyses);
+        delegate.build(options);
         timer.stop();
         logger.info(timer);
     }
