@@ -258,6 +258,12 @@ public class RISCV32Generator implements AssemblyGenerator {
         private String getOtherTempReg() {
             return "t2"; // 使用t2作为其他操作的临时寄存器
         }
+
+        // 选择一个不与给定寄存器冲突的 scratch（仅用 t0/t1）
+        private String pickScratchAvoid(String a, String b) {
+            if (!"t0".equals(a) && !"t0".equals(b)) return "t0";
+            return "t1";
+        }
         
 
         @Override
@@ -316,7 +322,7 @@ public class RISCV32Generator implements AssemblyGenerator {
             String src2 = loadOperand(binaryExp.getOperand2());
             LocalDataLocation destLoc = allocator.allocate(lvalue.getName());
             
-            String destReg = (destLoc.getType() == LocalDataLocation.LocationType.STACK) ? getOtherTempReg() : destLoc.getRegister();
+            String destReg = (destLoc.getType() == LocalDataLocation.LocationType.STACK) ? pickScratchAvoid(src1, src2) : destLoc.getRegister();
 
             if (binaryExp.getOperator() instanceof ArithmeticExp.Op arithOp) {
                 String riscvOp = switch (arithOp) {
@@ -423,7 +429,18 @@ public class RISCV32Generator implements AssemblyGenerator {
             int stackArgCount = Math.max(0, argCount - 8);
             int stackArgSize = stackArgCount * 4;
 
-            // 需要在 call 处保存的 caller-saved（本函数正在使用的 t 寄存器）
+            // 1) 预先把 <=8 个参数装入 a 寄存器（在不改动 sp 的情况下）
+            int regArgCount = Math.min(argCount, 8);
+            for (int i = 0; i < regArgCount; i++) {
+                Var arg = callExp.getArg(i);
+                String srcReg = loadOperand(arg);  // 这里会用 t0/t1 scratch，从当前 sp 正确加载
+                String argReg = "a" + i;
+                if (!srcReg.equals(argReg)) {
+                    builder.mv(argReg, srcReg);
+                }
+            }
+
+            // 2) 汇总需要保存的 caller-saved
             Set<String> callerSavedSet = new HashSet<>(allocator.getUsedCallerSavedRegisters());
             // 始终保存 t0 和 t1，因为它们被用作临时寄存器
             callerSavedSet.add("t0");
@@ -432,27 +449,23 @@ public class RISCV32Generator implements AssemblyGenerator {
 
             int callerSaveSize = callerSaved.size() * 4;
 
-            // 确保call时sp 16字节对齐，同时避免使用局部变量的空间
+            // 3) 计算对齐并下调 sp（只为 caller-saved + 栈参数预留空间）
             int reserve = stackArgSize + callerSaveSize;
             int pad = (16 - (reserve % 16)) % 16;
             int totalReserve = reserve + pad;
-            
-            // 在当前栈帧内分配足够的空间，确保不会覆盖0(sp)和4(sp)的局部变量
-            // 使用12(sp)以后的空间来保存寄存器
-            int baseOffset = 12;  // 跳过前12字节，这些通常用于局部变量
             
             if (totalReserve > 0) {
                 builder.addi("sp", "sp", String.valueOf(-totalReserve));
             }
             
-            // 先保存caller-saved寄存器，再准备参数
+            // 4）先保存caller-saved寄存器，再准备参数
             int saveBase = stackArgSize;
             for (int i = 0; i < callerSaved.size(); i++) {
                 String r = callerSaved.get(i);
                 builder.store("sw", r, saveBase + i * 4, "sp");
             }
 
-            // 栈上参数
+            // 5) 如果有 >8 的实参，此时再把它们写入“新 sp”下的栈参数区
             for (int i = 8; i < argCount; i++) {
                 Var arg = callExp.getArg(i);
                 String srcReg = loadOperand(arg);
@@ -461,19 +474,19 @@ public class RISCV32Generator implements AssemblyGenerator {
             }
 
             // 准备寄存器参数
-            for (int i = 0; i < Math.min(argCount, 8); i++) {
-                Var arg = callExp.getArg(i);
-                String srcReg = loadOperand(arg);
-                String argReg = "a" + i;
-                if (!srcReg.equals(argReg)) {
-                    builder.mv(argReg, srcReg);
-                }
-            }
+            // for (int i = 0; i < Math.min(argCount, 8); i++) {
+            //     Var arg = callExp.getArg(i);
+            //     String srcReg = loadOperand(arg);
+            //     String argReg = "a" + i;
+            //     if (!srcReg.equals(argReg)) {
+            //         builder.mv(argReg, srcReg);
+            //     }
+            // }
 
-            // 调用函数
+            // 6）调用函数
             builder.call(callee.getName());
 
-            // 恢复寄存器
+            // 7）恢复寄存器
             for (int i = 0; i < callerSaved.size(); i++) {
                 String r = callerSaved.get(i);
                 builder.load("lw", r, saveBase + i * 4, "sp");
@@ -484,7 +497,7 @@ public class RISCV32Generator implements AssemblyGenerator {
                 builder.addi("sp", "sp", String.valueOf(totalReserve));
             }
 
-            // 处理返回值
+            // 9) 处理返回值
             if (stmt.getResult() != null) {
                 LocalDataLocation resultLoc = allocator.allocate(stmt.getResult().getName());
                 if (resultLoc.getType() == LocalDataLocation.LocationType.STACK) {
