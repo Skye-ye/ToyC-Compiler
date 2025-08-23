@@ -2,6 +2,7 @@ package toyc.algorithm.optimization;
 
 import toyc.World;
 import toyc.algorithm.analysis.dataflow.analysis.constprop.CPFact;
+import toyc.algorithm.analysis.dataflow.analysis.constprop.ConstantPropagation;
 import toyc.algorithm.analysis.dataflow.analysis.constprop.Value;
 import toyc.algorithm.analysis.dataflow.fact.NodeResult;
 import toyc.algorithm.analysis.dataflow.inter.InterConstantPropagation;
@@ -33,7 +34,8 @@ public class ConstantFolding extends Optimization {
         nameManager = new NumericSuffixNaming(ir.getVars().stream()
                 .map(Var::getName)
                 .collect(Collectors.toSet()));
-        NodeResult<Stmt, CPFact> constants = World.get().getResult(InterConstantPropagation.ID);
+        NodeResult<Stmt, CPFact> constants =
+                ir.getResult(ConstantPropagation.ID);
 
         List<Stmt> stmts = ir.getStmts();
 

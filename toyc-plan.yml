@@ -1,8 +1,7 @@
 - analyses:
   - id: cg
   - id: cfg
-  - id: icfg
-  - id: inter-const-prop
+  - id: const-prop
   - id: const-fold
   - id: cg
   - id: cfg
@@ -20,8 +19,7 @@
 - analyses:
     - id: cg
     - id: cfg
-    - id: icfg
-    - id: inter-const-prop
+    - id: const-prop
     - id: const-fold
     - id: cg
     - id: cfg
