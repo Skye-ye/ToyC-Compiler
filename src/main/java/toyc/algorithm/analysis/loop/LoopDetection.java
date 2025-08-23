@@ -98,8 +98,6 @@ public class LoopDetection extends FunctionAnalysis<Set<Loop>> {
     private Loop constructNaturalLoop(CFGEdge<Stmt> backEdge) {
         Stmt header = backEdge.target();  // Loop header
         Set<Stmt> tails = Sets.newSet();
-        System.out.println(header);
-        System.out.println(backEdge.source());
 
         Set<Stmt> loopBody =
                 Sets.newOrderedSet(Comparator.comparing(Stmt::getIndex));

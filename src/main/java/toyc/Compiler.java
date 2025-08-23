@@ -5,6 +5,7 @@ import org.apache.logging.log4j.Logger;
 import toyc.algorithm.AlgorithmManager;
 import toyc.algorithm.analysis.graph.callgraph.CallGraph;
 import toyc.algorithm.analysis.graph.callgraph.CallGraphBuilder;
+import toyc.codegen.RISCV32Generator;
 import toyc.config.*;
 import toyc.frontend.cache.CachedWorldBuilder;
 import toyc.ir.IR;
@@ -36,6 +37,7 @@ public class Compiler {
         }, "ToyC Compiler");
         LoggerConfigs.reconfigure();
         printIR();
+        generateAssembly();
     }
 
     private static Options processArgs(String... args) {
@@ -103,5 +105,44 @@ public class Compiler {
             System.out.println();
         }
         System.out.println("========== End IR Output ==========");
+    }
+
+    private static void generateAssembly() {
+        Timer.runAndCount(() -> {
+            logger.info("Generating RISC-V assembly...");
+            
+            // Get functions to generate code for
+            Scope scope = World.get().getOptions().getScope();
+            List<Function> functionScope = switch (scope) {
+                case ALL -> World.get().getProgram().allFunctions().toList();
+                case REACHABLE -> {
+                    CallGraph<?, Function> callGraph =
+                            World.get().getResult(CallGraphBuilder.ID);
+                    yield callGraph.reachableFunctions().toList();
+                }
+            };
+            
+            try {
+                RISCV32Generator generator = new RISCV32Generator();
+                String assembly = generator.generateProgramAssembly(functionScope);
+                
+                // Output to file
+                String outputPath = World.get().getOptions().getOutputDir().toPath()
+                        .resolve("output.s").toString();
+                try (java.io.PrintWriter writer = new java.io.PrintWriter(outputPath)) {
+                    writer.print(assembly);
+                    logger.info("Assembly generated: {}", outputPath);
+                }
+                
+                // Also print to console
+                System.out.println("\n========== Assembly Output ==========");
+                System.out.print(assembly);
+                System.out.println("========== End Assembly Output ==========");
+                
+            } catch (Exception e) {
+                logger.error("Assembly generation failed: {}", e.getMessage());
+                System.exit(1);
+            }
+        }, "AssemblyGeneration");
     }
 }
