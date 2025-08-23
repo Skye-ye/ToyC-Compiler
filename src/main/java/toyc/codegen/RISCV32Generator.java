@@ -255,14 +255,84 @@ public class RISCV32Generator implements AssemblyGenerator {
         }
 
         // 新增一个方法用于获取非t0/t1的临时寄存器
-        private String getOtherTempReg() {
-            return "t2"; // 使用t2作为其他操作的临时寄存器
-        }
+        // private String getOtherTempReg() {
+        //     return "t2"; // 使用t2作为其他操作的临时寄存器
+        // }
 
         // 选择一个不与给定寄存器冲突的 scratch（仅用 t0/t1）
         private String pickScratchAvoid(String a, String b) {
             if (!"t0".equals(a) && !"t0".equals(b)) return "t0";
             return "t1";
+        }
+
+        // private int boolLblId = 0;
+        // private String newBoolLabel(String pfx) {
+        //     return pfx + "_B" + (boolLblId++);
+        // }
+
+        // 将 cond 求值为 0/1 写入 dstReg（仅使用 t0/t1）
+        private void emitBooleanToReg(RValue cond, String dstReg) {
+            // 情况1：比较类条件，直接生成 0/1
+            if (cond instanceof BinaryExp be && be.getOperator() instanceof ConditionExp.Op op) {
+                String a = loadOperand(be.getOperand1());
+                String b = loadOperand(be.getOperand2());
+                switch (op) {
+                    case EQ -> {                      // a == b -> 1
+                        builder.op3("sub", dstReg, a, b);
+                        builder.sltiu(dstReg, dstReg, 1);
+                    }
+                    case NE -> {                      // a != b -> 1
+                        builder.op3("sub", dstReg, a, b);
+                        builder.sltu(dstReg, "zero", dstReg);
+                    }
+                    case LT -> builder.slt(dstReg, a, b);
+                    case LE -> {                      // !(b < a)
+                        builder.slt(dstReg, b, a);
+                        builder.xori(dstReg, dstReg, 1);
+                    }
+                    case GT -> builder.slt(dstReg, b, a);
+                    case GE -> {                      // !(a < b)
+                        builder.slt(dstReg, a, b);
+                        builder.xori(dstReg, dstReg, 1);
+                    }
+                    default -> throw new IllegalStateException("Unknown condition op: " + op);
+                }
+                return;
+            }
+
+            // 情况2：任意非常规/复合表达式 —— 先算出值v，再归一化为 0/1（非零即真）
+            String v = loadOperand(cond);            // loadOperand 会把值算到某个寄存器
+            builder.sltu(dstReg, "zero", v);         // dstReg = (v != 0) ? 1 : 0
+        }
+
+        // cond 为真则跳到 lTrue（If 没有 else 也适用）
+        private void emitBranchOnTrue(RValue cond, String lTrue) {
+            emitBooleanToReg(cond, "t0");            // t0 ∈ {0,1}
+            builder.bne("t0", "zero", lTrue);
+        }
+
+        // 如果你的 IR 有“expr=0; if(cond) expr=1;”这种形态，可用该辅助生成：
+        private void emitSetOneIf(RValue cond, LocalDataLocation dstLoc) {
+            // 预设 expr = 0
+            if (dstLoc.getType() == LocalDataLocation.LocationType.REGISTER) {
+                builder.li(dstLoc.getRegister(), 0);
+            } else {
+                builder.li("t1", 0);
+                builder.store("sw", "t1", dstLoc.getOffset(), "sp");
+            }
+            // 分支：true -> 置 1
+            String Ltrue = "L_set1_true_" + (labelCounter++);
+            String Lend  = "L_set1_end_" + (labelCounter++);
+            emitBranchOnTrue(cond, Ltrue);
+            builder.j(Lend);
+            builder.label(Ltrue);
+            if (dstLoc.getType() == LocalDataLocation.LocationType.REGISTER) {
+                builder.li(dstLoc.getRegister(), 1);
+            } else {
+                builder.li("t1", 1);
+                builder.store("sw", "t1", dstLoc.getOffset(), "sp");
+            }
+            builder.label(Lend);
         }
         
 
@@ -531,32 +601,42 @@ public class RISCV32Generator implements AssemblyGenerator {
             return null;
         }
 
+        // @Override
+        // public Void visit(If stmt) {
+        //     // Handle conditional jumps based on condition expression type
+        //     String targetLabel = getOrCreateLabel(stmt.getTarget());
+        //     RValue condition = stmt.getCondition();
+            
+        //     if (condition instanceof BinaryExp binaryExp && 
+        //         binaryExp.getOperator() instanceof ConditionExp.Op condOp) {
+                
+        //         // 对于比较操作，直接生成对应的分支指令
+        //         String src1 = loadOperand(binaryExp.getOperand1());
+        //         String src2 = loadOperand(binaryExp.getOperand2());
+                
+        //         switch (condOp) {
+        //             case EQ -> builder.beq(src1, src2, targetLabel);
+        //             case NE -> builder.bne(src1, src2, targetLabel);
+        //             case LT -> builder.blt(src1, src2, targetLabel);
+        //             case GE -> builder.bge(src1, src2, targetLabel);
+        //             case GT -> builder.blt(src2, src1, targetLabel); // 交换操作数：src2 < src1 等价于 src1 > src2
+        //             case LE -> builder.bge(src2, src1, targetLabel); // 交换操作数：src2 >= src1 等价于 src1 <= src2
+        //         }
+        //     } else {
+        //         // 对于其他类型的条件（变量或复杂表达式的结果），使用 bnez
+        //         String condReg = loadOperand(condition);
+        //         builder.bnez(condReg, targetLabel);
+        //     }
+        //     return null;
+        // }
+
         @Override
         public Void visit(If stmt) {
-            // Handle conditional jumps based on condition expression type
             String targetLabel = getOrCreateLabel(stmt.getTarget());
             RValue condition = stmt.getCondition();
-            
-            if (condition instanceof BinaryExp binaryExp && 
-                binaryExp.getOperator() instanceof ConditionExp.Op condOp) {
-                
-                // 对于比较操作，直接生成对应的分支指令
-                String src1 = loadOperand(binaryExp.getOperand1());
-                String src2 = loadOperand(binaryExp.getOperand2());
-                
-                switch (condOp) {
-                    case EQ -> builder.beq(src1, src2, targetLabel);
-                    case NE -> builder.bne(src1, src2, targetLabel);
-                    case LT -> builder.blt(src1, src2, targetLabel);
-                    case GE -> builder.bge(src1, src2, targetLabel);
-                    case GT -> builder.blt(src2, src1, targetLabel); // 交换操作数：src2 < src1 等价于 src1 > src2
-                    case LE -> builder.bge(src2, src1, targetLabel); // 交换操作数：src2 >= src1 等价于 src1 <= src2
-                }
-            } else {
-                // 对于其他类型的条件（变量或复杂表达式的结果），使用 bnez
-                String condReg = loadOperand(condition);
-                builder.bnez(condReg, targetLabel);
-            }
+
+            // 统一：把条件转为 0/1 然后 bne
+            emitBranchOnTrue(condition, targetLabel);
             return null;
         }
 
@@ -572,7 +652,7 @@ public class RISCV32Generator implements AssemblyGenerator {
             if (unaryExp instanceof NegExp) {
                 LocalDataLocation destLoc = allocator.allocate(lvalue.getName());
                 if (destLoc.getType() == LocalDataLocation.LocationType.STACK) {
-                    String tempReg = getOtherTempReg();
+                    String tempReg = "t0".equals(srcReg) ? "t1" : "t0";
                     builder.op3("sub", tempReg, "zero", srcReg);  // tempReg = 0 - src (negation)
                     builder.store("sw", tempReg, destLoc.getOffset(), "sp");
                 } else {
@@ -618,6 +698,12 @@ public class RISCV32Generator implements AssemblyGenerator {
                 throw new UnsupportedOperationException("Unsupported operand type: " + operand.getClass());
             }
         }
+
+        // private void generateExprSetByIfOne(Var dstVar, RValue cond) {
+        //     LocalDataLocation dstLoc = allocator.allocate(dstVar.getName());
+        //     emitSetOneIf(cond, dstLoc);
+        // }
+        
         // private String loadOperand(RValue operand) {
         //     if (operand instanceof Var var) {
 
