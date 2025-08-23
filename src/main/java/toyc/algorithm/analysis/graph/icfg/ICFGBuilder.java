@@ -25,16 +25,11 @@ public class ICFGBuilder extends ProgramAnalysis<ICFG<Function, Stmt>> {
 
     private static final Logger logger = LogManager.getLogger(ICFGBuilder.class);
 
+    private final boolean isDump;
+
     public ICFGBuilder(AlgorithmConfig config) {
         super(config);
-    }
-
-    @Override
-    public ICFG<Function, Stmt> analyze() {
-        CallGraph<Stmt, Function> callGraph = World.get().getResult(CallGraphBuilder.ID);
-        ICFG<Function, Stmt> icfg = new DefaultICFG(callGraph);
-        dumpICFG(icfg);
-        return icfg;
+        isDump = getOptions().getBoolean("dump");
     }
 
     private static void dumpICFG(ICFG<Function, Stmt> icfg) {
@@ -75,5 +70,15 @@ public class ICFGBuilder extends ProgramAnalysis<ICFG<Function, Stmt>> {
 
     static CFG<Stmt> getCFGOf(Function function) {
         return function.getIR().getResult(CFGBuilder.ID);
+    }
+
+    @Override
+    public ICFG<Function, Stmt> analyze() {
+        CallGraph<Stmt, Function> callGraph = World.get().getResult(CallGraphBuilder.ID);
+        ICFG<Function, Stmt> icfg = new DefaultICFG(callGraph);
+        if (isDump) {
+            dumpICFG(icfg);
+        }
+        return icfg;
     }
 }

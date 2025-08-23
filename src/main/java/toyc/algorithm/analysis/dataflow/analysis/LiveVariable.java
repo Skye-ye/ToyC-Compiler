@@ -21,7 +21,7 @@ public class LiveVariable extends AnalysisDriver<Stmt, SetFact<Var>> {
     }
 
     @Override
-    protected AbstractDataflowAnalysis<Stmt, SetFact<Var>> makeAnalysis(CFG<Stmt> cfg) {
+    protected DataflowAnalysis<Stmt, SetFact<Var>> makeAnalysis(CFG<Stmt> cfg) {
         return new Analysis(cfg, getOptions().getBoolean("strongly"));
     }
 

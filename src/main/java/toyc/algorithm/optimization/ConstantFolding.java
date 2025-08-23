@@ -9,13 +9,19 @@ import toyc.config.AlgorithmConfig;
 import toyc.ir.IR;
 import toyc.ir.exp.*;
 import toyc.ir.stmt.*;
+import toyc.util.NumericSuffixNaming;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ConstantFolding extends Optimization {
     public static final String ID = "const-fold";
 
+    private static final String INT_CONST = "%intconst";
+
     private IROperation operation;
+
+    private NumericSuffixNaming nameManager;
 
     public ConstantFolding(AlgorithmConfig config) {
         super(config);
@@ -24,6 +30,9 @@ public class ConstantFolding extends Optimization {
     @Override
     public IR optimize(IR ir) {
         operation = new IROperation(ir);
+        nameManager = new NumericSuffixNaming(ir.getVars().stream()
+                .map(Var::getName)
+                .collect(Collectors.toSet()));
         NodeResult<Stmt, CPFact> constants = World.get().getResult(InterConstantPropagation.ID);
 
         List<Stmt> stmts = ir.getStmts();
@@ -40,19 +49,22 @@ public class ConstantFolding extends Optimization {
         if (stmt instanceof Return returnStmt) {
             foldReturn(returnStmt, fact);
         } else if (stmt instanceof AssignStmt<?, ?> assignStmt) {
-            if (assignStmt instanceof AssignLiteral) {
-                // Already a literal assignment, no need to fold
-                return;
-            }
-            if (assignStmt.getLValue() instanceof Var var) {
-                Value value = fact.get(var);
-                if (value.isConstant()) {
-                    // Constant assignment, replace the statement with AssignLiteral
-                    int constValue = value.getConstant();
-                    AssignLiteral assignLiteral = new AssignLiteral(var,
-                            IntLiteral.get(constValue));
-                    operation.replace(assignStmt, assignLiteral);
-                }
+            foldAssign(assignStmt, fact);
+        }
+    }
+
+    private void foldAssign(AssignStmt<?, ?> assignStmt, CPFact fact) {
+        if (assignStmt instanceof AssignLiteral) {
+            return;
+        }
+        if (assignStmt.getLValue() instanceof Var var) {
+            Value value = fact.get(var);
+            if (value.isConstant()) {
+                // Constant assignment, replace the statement with AssignLiteral
+                int constValue = value.getConstant();
+                AssignLiteral assignLiteral = new AssignLiteral(var,
+                        IntLiteral.get(constValue));
+                operation.replace(assignStmt, assignLiteral);
             }
         }
     }
@@ -64,7 +76,8 @@ public class ConstantFolding extends Optimization {
             if (retValue.isConstant()) {
                 // Constant return value, replace Var with intconst
                 int constValue = retValue.getConstant();
-                Var constVar = new Var(retVar.getFunction(), "__const_ret__",
+                Var constVar = new Var(retVar.getFunction(),
+                        nameManager.getNewVarName(INT_CONST),
                         retVar.getType(), -1, IntLiteral.get(constValue));
                 Return newReturnStmt = new Return(constVar);
                 AssignLiteral assignStmt = new AssignLiteral(constVar, IntLiteral.get(constValue));

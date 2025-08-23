@@ -16,7 +16,7 @@ import java.util.Objects;
 /**
  * Configuration for an algorithm.
  */
-public class AlgorithmConfig {
+public final class AlgorithmConfig implements PlanElement {
 
     /**
      * Description of the algorithm.

@@ -1,10 +1,7 @@
 package toyc.ir;
 
 import toyc.ir.exp.Var;
-import toyc.ir.stmt.Goto;
-import toyc.ir.stmt.If;
-import toyc.ir.stmt.Return;
-import toyc.ir.stmt.Stmt;
+import toyc.ir.stmt.*;
 import toyc.util.AnalysisException;
 
 import javax.annotation.Nonnull;
@@ -73,6 +70,7 @@ public class MutableIR {
                 return;
             }
         }
+        System.out.println(beforeStmt);
         throw new AnalysisException("insertBefore: Statement not found");
     }
 
@@ -111,6 +109,16 @@ public class MutableIR {
     }
 
     /**
+     * Check if the specified statement exists in the IR.
+     * 
+     * @param stmt the statement to check for
+     * @return true if the statement exists, false otherwise
+     */
+    public boolean contains(Stmt stmt) {
+        return stmts.contains(stmt);
+    }
+
+    /**
      * Get the next statement after the specified statement.
      */
     public Stmt getNextStmt(Stmt currentStmt) {
@@ -128,16 +136,12 @@ public class MutableIR {
     /**
      * Get the predecessors that jump to the specified statement.
      */
-    public Set<Stmt> getPredecessors(Stmt stmt) {
-        Set<Stmt> predecessors = new HashSet<>();
+    public Set<JumpStmt> getPredecessors(Stmt stmt) {
+        Set<JumpStmt> predecessors = new HashSet<>();
         for (Stmt s : stmts) {
-            if (s instanceof If ifStmt) {
-                if (ifStmt.getTarget() == stmt) {
-                    predecessors.add(s);
-                }
-            } else if (s instanceof Goto gotoStmt) {
-                if (gotoStmt.getTarget() == stmt) {
-                    predecessors.add(s);
+            if (s instanceof JumpStmt jumpStmt) {
+                if (jumpStmt.getTarget() == stmt) {
+                    predecessors.add(jumpStmt);
                 }
             }
         }

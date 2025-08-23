@@ -2,6 +2,8 @@ package toyc.config;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,9 +24,21 @@ import java.util.StringJoiner;
  * <p>
  * Different from {@link AlgorithmConfig} which is specified by configuration file,
  * {@link PlanConfig} is specified by either plan file or options.
+ * <p>
+ * PlanConfig can represent either:
+ * 1. An algorithm configuration (with id and options)
+ * 2. A nested plan configuration (with name and list of nested analyses)
  *
  * @see AlgorithmConfig
  */
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.DEDUCTION,
+        defaultImpl = PlanConfig.class
+)
+@JsonSubTypes({
+        @JsonSubTypes.Type(value = PlanConfig.class),
+        @JsonSubTypes.Type(value = NestedPlanConfig.class)
+})
 public class PlanConfig {
 
     private static final Logger logger = LogManager.getLogger(PlanConfig.class);
@@ -60,6 +74,20 @@ public class PlanConfig {
         return options;
     }
 
+    /**
+     * Check if this config represents an algorithm (has id) or a nested plan.
+     */
+    public boolean isAlgorithm() {
+        return id != null;
+    }
+
+    /**
+     * Check if this config represents a nested plan.
+     */
+    public boolean isNestedPlan() {
+        return !isAlgorithm();
+    }
+
     @Override
     public String toString() {
         return "PlanConfig{" +
@@ -70,6 +98,7 @@ public class PlanConfig {
 
     /**
      * Read a list of PlanConfig from given file.
+     * Can include both algorithm configs and nested plan configs.
      */
     public static List<PlanConfig> readConfigs(File file) {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
@@ -84,6 +113,7 @@ public class PlanConfig {
 
     /**
      * Reads a list of PlanConfig from options.
+     * Command line options only support algorithm configs (not nested plans).
      */
     public static List<PlanConfig> readConfigs(Options options) {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());

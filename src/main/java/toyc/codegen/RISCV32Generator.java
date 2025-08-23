@@ -41,14 +41,6 @@ public class RISCV32Generator implements AssemblyGenerator {
     public String generateProgramAssembly(List<Function> functions) {
         StringBuilder sb = new StringBuilder();
         
-        // 添加汇编文件头部
-        sb.append("# Generated RISC-V 32-bit assembly code\n");
-        sb.append("# Target: RISC-V 32-bit\n\n");
-        
-        // 添加段声明
-        sb.append(".text\n");
-        sb.append(".align 2\n\n");
-        
         // 生成所有函数的汇编代码
         for (Function function : functions) {
             sb.append(generateFunctionAssembly(function));
