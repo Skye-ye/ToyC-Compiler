@@ -114,6 +114,11 @@ public class LoopUnrolling extends Optimization {
      * Check if a variable is defined before the loop starts
      */
     private boolean isVarDefinedBeforeLoop(Var var, int loopHeaderIndex) {
+        for (Var param : ir.getParams()) {
+            if (param.equals(var)) {
+                return true;
+            }
+        }
         for (Stmt stmt : ir.getStmts()) {
             if (stmt.getIndex() >= loopHeaderIndex) {
                 break; // Stop checking after reaching the loop header

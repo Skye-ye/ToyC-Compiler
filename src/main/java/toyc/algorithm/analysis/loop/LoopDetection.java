@@ -9,8 +9,6 @@ import toyc.algorithm.analysis.graph.cfg.CFGBuilder;
 import toyc.algorithm.analysis.graph.cfg.CFGEdge;
 import toyc.config.AlgorithmConfig;
 import toyc.ir.IR;
-import toyc.ir.stmt.Goto;
-import toyc.ir.stmt.If;
 import toyc.ir.stmt.JumpStmt;
 import toyc.ir.stmt.Stmt;
 import toyc.util.collection.Sets;
@@ -100,6 +98,8 @@ public class LoopDetection extends FunctionAnalysis<Set<Loop>> {
     private Loop constructNaturalLoop(CFGEdge<Stmt> backEdge) {
         Stmt header = backEdge.target();  // Loop header
         Set<Stmt> tails = Sets.newSet();
+        System.out.println(header);
+        System.out.println(backEdge.source());
 
         Set<Stmt> loopBody =
                 Sets.newOrderedSet(Comparator.comparing(Stmt::getIndex));

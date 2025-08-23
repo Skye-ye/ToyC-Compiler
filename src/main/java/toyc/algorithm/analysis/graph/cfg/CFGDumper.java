@@ -39,9 +39,9 @@ public class CFGDumper {
 
     public static <N> String toLabel(N node, CFG<N> cfg) {
         if (cfg.isEntry(node)) {
-            return "Entry" + cfg.getFunction();
+            return "Entry[" + cfg.getFunction() + "]";
         } else if (cfg.isExit(node)) {
-            return "Exit" + cfg.getFunction();
+            return "Exit[" + cfg.getFunction() + "]";
         } else {
             return node instanceof Stmt ?
                     ((Stmt) node).getIndex() + ": " + node.toString().replace("\"", "\\\"") :
