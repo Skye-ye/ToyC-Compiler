@@ -17,16 +17,16 @@
 - id: def-use
 - id: loop-unroll
 - analyses:
-    - id: cg
-    - id: cfg
-    - id: const-prop
-    - id: const-fold
-    - id: cg
-    - id: cfg
-    - id: const-prop
-    - id: live-var
-    - id: dead-code
-    - id: dead-code-elim
+  - id: cg
+  - id: cfg
+  - id: const-prop
+  - id: const-fold
+  - id: cg
+  - id: cfg
+  - id: const-prop
+  - id: live-var
+  - id: dead-code
+  - id: dead-code-elim
 - id: cg
 - id: func-inline
 - id: func-inline-opt
