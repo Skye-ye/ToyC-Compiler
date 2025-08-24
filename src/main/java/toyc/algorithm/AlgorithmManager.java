@@ -30,6 +30,8 @@ public class AlgorithmManager {
 
     private List<Function> functionScope;
 
+    private static final int MAX_ITERATIONS = 100;
+
     public AlgorithmManager(Plan plan) {
         this.plan = plan;
     }
@@ -49,6 +51,7 @@ public class AlgorithmManager {
 
         boolean globalChanges = false;
         boolean hasChanges;
+        int iterations = 0;
 
         do {
             functionScope = null; // Reset scope for each iteration
@@ -66,6 +69,11 @@ public class AlgorithmManager {
                     globalChanges = true;
                     logger.debug("Changes detected in {}", getPlanElementName(element));
                 }
+            }
+
+            iterations++;
+            if (iterations >= MAX_ITERATIONS) {
+                break;
             }
         } while (hasChanges);
 
@@ -140,17 +148,17 @@ public class AlgorithmManager {
     // Run optimization sequentially to avoid concurrent modifications
     // TODO: consider parallel optimizations
     private boolean runOptimization(Optimization optimization) {
-        // List<Function> functions = getFunctionScope();
+        List<Function> functions = getFunctionScope();
         boolean modified = false;
 
-        Function mainFunction = World.get().getMainFunction();
-
-        IR ir = mainFunction.getIR();
-        IR optimizedIR = optimization.optimize(ir);
-        if (!optimizedIR.equals(ir)) {
-            modified = true;
+        for (Function function : functions) {
+            IR ir = function.getIR();
+            IR optimizedIR = optimization.optimize(ir);
+            if (!optimizedIR.equals(ir)) {
+                modified = true;
+            }
+            function.setIR(optimizedIR);
         }
-        mainFunction.setIR(optimizedIR);
 
         return modified;
     }
