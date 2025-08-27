@@ -648,16 +648,25 @@ public class RISCV32Generator implements AssemblyGenerator {
             // Load the operand
             String srcReg = loadOperand(unaryExp.getOperand());
 
-            // Generate unary operation (currently only negation is supported)
+            LocalDataLocation destLoc = allocator.allocate(lvalue.getName());
+            String destReg = (destLoc.getType() == LocalDataLocation.LocationType.STACK) ? "t0" : destLoc.getRegister();
+
             if (unaryExp instanceof NegExp) {
-                LocalDataLocation destLoc = allocator.allocate(lvalue.getName());
-                if (destLoc.getType() == LocalDataLocation.LocationType.STACK) {
-                    String tempReg = "t0".equals(srcReg) ? "t1" : "t0";
-                    builder.op3("sub", tempReg, "zero", srcReg);  // tempReg = 0 - src (negation)
-                    builder.store("sw", tempReg, destLoc.getOffset(), "sp");
-                } else {
-                    builder.op3("sub", destLoc.getRegister(), "zero", srcReg);  // dest = 0 - src
-                }
+                // 算术取负：0 - src
+                builder.op3("sub", destReg, "zero", srcReg);
+            } else if (unaryExp instanceof NotExp) {
+                // 逻辑非：如果 src == 0 则结果为 1，否则为 0
+                // 使用 sltiu 指令：sltiu rd, rs1, 1
+                // 当 rs1 == 0 时，0 < 1 为真，rd = 1
+                // 当 rs1 != 0 时，rs1 < 1 为假，rd = 0
+                builder.sltiu(destReg, srcReg, 1);
+            } else {
+                throw new UnsupportedOperationException("Unsupported unary operation: " + unaryExp.getClass().getSimpleName());
+            }
+
+            // 如果目标位置是栈，需要存储结果
+            if (destLoc.getType() == LocalDataLocation.LocationType.STACK) {
+                builder.store("sw", "t0", destLoc.getOffset(), "sp");
             }
 
             return null;
