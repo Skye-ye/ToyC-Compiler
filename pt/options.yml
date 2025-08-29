@@ -1,0 +1,10 @@
+optionsFile: null
+printHelp: false
+inputFile: src/test/resources/toyc/oj/p01_const.tc
+worldBuilderClass: toyc.frontend.ToyCWorldBuilder
+outputDir: pt
+preBuildIR: false
+worldCacheMode: false
+scope: REACHABLE
+planFile: null
+analyses: {}
