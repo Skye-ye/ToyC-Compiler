@@ -30,7 +30,7 @@ public class AlgorithmManager {
 
     private List<Function> functionScope;
 
-    private static final int MAX_ITERATIONS = 100;
+    private static final int MAX_ITERATIONS = 20;
 
     public AlgorithmManager(Plan plan) {
         this.plan = plan;

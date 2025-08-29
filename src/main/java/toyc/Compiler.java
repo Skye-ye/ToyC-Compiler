@@ -8,8 +8,6 @@ import toyc.algorithm.analysis.graph.callgraph.CallGraphBuilder;
 import toyc.codegen.RISCV32Generator;
 import toyc.config.*;
 import toyc.frontend.cache.CachedWorldBuilder;
-import toyc.ir.IR;
-import toyc.ir.IRPrinter;
 import toyc.language.Function;
 import toyc.util.Timer;
 

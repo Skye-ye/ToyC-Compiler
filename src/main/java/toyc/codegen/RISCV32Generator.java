@@ -1,8 +1,5 @@
 package toyc.codegen;
 
-import toyc.World;
-import toyc.algorithm.analysis.graph.callgraph.CallGraph;
-import toyc.algorithm.analysis.graph.callgraph.CallGraphBuilder;
 import toyc.codegen.regalloc.LinearScanAllocator;
 import toyc.codegen.regalloc.LiveInterval;
 import toyc.codegen.regalloc.LocalDataLocation;
@@ -71,10 +68,9 @@ public class RISCV32Generator implements AssemblyGenerator {
         int stackSize = allocator.getStackSize();  // 局部变量（spilled）空间，已对齐
         
         Set<String> calleeSavedSet = allocator.getUsedCalleeSavedRegisters();  // s0-s11
-        LinkedHashSet<String> savedRegs = new LinkedHashSet<>();
 
         // 改动1：凡使用了 s 寄存器，都必须保存/恢复（与是否存在调用无关）
-        savedRegs.addAll(calleeSavedSet);
+        LinkedHashSet<String> savedRegs = new LinkedHashSet<>(calleeSavedSet);
 
         if (hasCallSite) {
             savedRegs.add("ra");
@@ -94,8 +90,8 @@ public class RISCV32Generator implements AssemblyGenerator {
             if (totalStackSize > 0) {
                 builder.addi("sp", "sp", String.valueOf(-totalStackSize));
             }
-            int saveOffset = stackSize;  // 保存区从局部变量后开始
-            int currentOffset = saveOffset;
+            // 保存区从局部变量后开始
+            int currentOffset = stackSize;
             for (String reg : savedRegs) {
                 builder.saveRegister(reg, currentOffset);
                 currentOffset += 4;
@@ -132,8 +128,7 @@ public class RISCV32Generator implements AssemblyGenerator {
         builder.label(functionExitLabel);
         if (totalStackSize > 0 || !savedRegs.isEmpty()) {
             builder.comment("Function epilogue - restore registers and deallocate stack");
-            int saveOffset = stackSize;
-            int currentOffset = saveOffset;
+            int currentOffset = stackSize;
             for (String reg : savedRegs) {
                 builder.restoreRegister(reg, currentOffset);
                 currentOffset += 4;
@@ -241,26 +236,16 @@ public class RISCV32Generator implements AssemblyGenerator {
             }
             // 如果函数末尾没有return语句，添加一个跳转到退出点
             // 这确保所有执行路径都通过统一的退出点
-            if (!stmts.isEmpty() && !(stmts.get(stmts.size() - 1) instanceof Return)) {
+            if (!stmts.isEmpty() && !(stmts.getLast() instanceof Return)) {
                 builder.j(functionExitLabel);
     }
         }
-
-        // 新增一个方法用于获取非t0/t1的临时寄存器
-        // private String getOtherTempReg() {
-        //     return "t2"; // 使用t2作为其他操作的临时寄存器
-        // }
 
         // 选择一个不与给定寄存器冲突的 scratch（仅用 t0/t1）
         private String pickScratchAvoid(String a, String b) {
             if (!"t0".equals(a) && !"t0".equals(b)) return "t0";
             return "t1";
         }
-
-        // private int boolLblId = 0;
-        // private String newBoolLabel(String pfx) {
-        //     return pfx + "_B" + (boolLblId++);
-        // }
 
         // 将 cond 求值为 0/1 写入 dstReg（仅使用 t0/t1）
         private void emitBooleanToReg(RValue cond, String dstReg) {
@@ -302,31 +287,6 @@ public class RISCV32Generator implements AssemblyGenerator {
             emitBooleanToReg(cond, "t0");            // t0 ∈ {0,1}
             builder.bne("t0", "zero", lTrue);
         }
-
-        // 如果你的 IR 有“expr=0; if(cond) expr=1;”这种形态，可用该辅助生成：
-        private void emitSetOneIf(RValue cond, LocalDataLocation dstLoc) {
-            // 预设 expr = 0
-            if (dstLoc.getType() == LocalDataLocation.LocationType.REGISTER) {
-                builder.li(dstLoc.getRegister(), 0);
-            } else {
-                builder.li("t1", 0);
-                builder.store("sw", "t1", dstLoc.getOffset(), "sp");
-            }
-            // 分支：true -> 置 1
-            String Ltrue = "L_set1_true_" + (labelCounter++);
-            String Lend  = "L_set1_end_" + (labelCounter++);
-            emitBranchOnTrue(cond, Ltrue);
-            builder.j(Lend);
-            builder.label(Ltrue);
-            if (dstLoc.getType() == LocalDataLocation.LocationType.REGISTER) {
-                builder.li(dstLoc.getRegister(), 1);
-            } else {
-                builder.li("t1", 1);
-                builder.store("sw", "t1", dstLoc.getOffset(), "sp");
-            }
-            builder.label(Lend);
-        }
-        
 
         @Override
         public Void visit(AssignLiteral stmt) {
@@ -593,35 +553,6 @@ public class RISCV32Generator implements AssemblyGenerator {
             return null;
         }
 
-        // @Override
-        // public Void visit(If stmt) {
-        //     // Handle conditional jumps based on condition expression type
-        //     String targetLabel = getOrCreateLabel(stmt.getTarget());
-        //     RValue condition = stmt.getCondition();
-
-        //     if (condition instanceof BinaryExp binaryExp &&
-        //         binaryExp.getOperator() instanceof ConditionExp.Op condOp) {
-
-        //         // 对于比较操作，直接生成对应的分支指令
-        //         String src1 = loadOperand(binaryExp.getOperand1());
-        //         String src2 = loadOperand(binaryExp.getOperand2());
-
-        //         switch (condOp) {
-        //             case EQ -> builder.beq(src1, src2, targetLabel);
-        //             case NE -> builder.bne(src1, src2, targetLabel);
-        //             case LT -> builder.blt(src1, src2, targetLabel);
-        //             case GE -> builder.bge(src1, src2, targetLabel);
-        //             case GT -> builder.blt(src2, src1, targetLabel); // 交换操作数：src2 < src1 等价于 src1 > src2
-        //             case LE -> builder.bge(src2, src1, targetLabel); // 交换操作数：src2 >= src1 等价于 src1 <= src2
-        //         }
-        //     } else {
-        //         // 对于其他类型的条件（变量或复杂表达式的结果），使用 bnez
-        //         String condReg = loadOperand(condition);
-        //         builder.bnez(condReg, targetLabel);
-        //     }
-        //     return null;
-        // }
-
         @Override
         public Void visit(If stmt) {
             String targetLabel = getOrCreateLabel(stmt.getTarget());
@@ -699,68 +630,5 @@ public class RISCV32Generator implements AssemblyGenerator {
                 throw new UnsupportedOperationException("Unsupported operand type: " + operand.getClass());
             }
         }
-
-        // private void generateExprSetByIfOne(Var dstVar, RValue cond) {
-        //     LocalDataLocation dstLoc = allocator.allocate(dstVar.getName());
-        //     emitSetOneIf(cond, dstLoc);
-        // }
-
-        // private String loadOperand(RValue operand) {
-        //     if (operand instanceof Var var) {
-
-        //         LocalDataLocation location = allocator.allocate(var.getName());
-        //         if (location == null) {
-        //             throw new IllegalStateException("No location allocated for variable: " + var.getName() + 
-        //                                   ", varToLocation keys: " + allocator.getAllLocations().keySet());
-        //         }
-        //         if (location.getType() == LocalDataLocation.LocationType.STACK) {
-        //             builder.load("lw", "t0", location.getOffset(), "sp");
-        //             return "t0";
-        //         } else {
-        //             return location.getRegister();
-        //         }
-        //     } else if (operand instanceof IntLiteral intLit) {
-        //         builder.li("t1", intLit.getValue());
-        //         return "t1";
-        //     } else {
-        //         throw new UnsupportedOperationException("Unsupported operand type: " + operand.getClass());
-        //     }
-        // }
-
-        /**
-         * Map binary expression operators to RISC-V instructions.
-         * This function seems useless now!
-         */
-        // private String getRISCVOp(BinaryExp.Op op) {
-        //     if (op instanceof ArithmeticExp.Op arithOp) {
-        //         return switch (arithOp) {
-        //             case ADD -> "add";
-        //             case SUB -> "sub";
-        //             case MUL -> "mul";
-        //             case DIV -> "div";
-        //             case REM -> "rem";
-        //         };
-        //     } else if (op instanceof ConditionExp.Op condOp) {
-        //         return switch (condOp) {
-        //             case EQ -> "seq";   // Set if equal (pseudo-instruction)
-        //             case NE -> "sne";   // Set if not equal (pseudo-instruction)
-        //             case LT -> "slt";   // Set if less than
-        //             case LE ->
-        //                     "sle";   // Set if less than or equal (pseudo-instruction)
-        //             case GT ->
-        //                     "sgt";   // Set if greater than (pseudo-instruction)
-        //             case GE ->
-        //                     "sge";   // Set if greater than or equal (pseudo-instruction)
-        //         };
-        //     } else if (op instanceof ComparisonExp.Op compOp) {
-        //         return switch (compOp) {
-        //             case CMP -> "cmp";      // Generic compare
-        //             case CMPL -> "cmpl";    // Compare with less bias
-        //             case CMPG -> "cmpg";    // Compare with greater bias
-        //         };
-        //     }
-
-        //     throw new IllegalArgumentException("Unsupported binary operation: " + op);
-        // }
     }
 }
